@@ -8,12 +8,11 @@ use RMS\Accounting\Services\CustomerInvoiceService;
 use RMS\Accounting\Services\ExpenseService;
 use RMS\Accounting\Models\Account;
 use RMS\Accounting\Models\FiscalYear;
-use RMS\Core\Http\Controllers\AdminController;
 
 /**
  * کنترلر داشبورد حسابداری
  */
-class DashboardController extends AdminController
+class DashboardController extends AccountingAdminController
 {
     protected LedgerService $ledgerService;
     protected CustomerInvoiceService $invoiceService;
