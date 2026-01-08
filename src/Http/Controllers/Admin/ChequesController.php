@@ -11,7 +11,7 @@ use RMS\Core\Contracts\List\HasList;
 use RMS\Core\Contracts\Form\HasForm;
 use RMS\Core\Contracts\Filter\ShouldFilter;
 
-class ChequesController extends AdminController implements
+class ChequesController extends AccountingAdminController implements
     HasList,
     HasForm,
     ShouldFilter

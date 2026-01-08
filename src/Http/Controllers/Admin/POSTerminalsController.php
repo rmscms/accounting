@@ -11,7 +11,7 @@ use RMS\Core\Contracts\Form\HasForm;
 use RMS\Core\Contracts\Filter\ShouldFilter;
 use RMS\Core\Contracts\Actions\ChangeBoolField;
 
-class POSTerminalsController extends AdminController implements
+class POSTerminalsController extends AccountingAdminController implements
     HasList,
     HasForm,
     ShouldFilter,
