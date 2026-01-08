@@ -23,10 +23,13 @@ class TreasurySimulator extends BaseSimulator
 
     protected function createBanks(): void
     {
+        // پیدا کردن حساب بانک از Chart of Accounts
+        $bankAccountId = DB::table('accounts')->where('code', '1-1-2')->value('id');
+        
         $banks = [
-            ['name' => 'بانک ملی', 'branch_name' => 'شعبه مرکزی', 'account_number' => '1001-' . rand(1000000, 9999999), 'currency_code' => 'IRR', 'balance' => 10000000000],
-            ['name' => 'بانک ملت', 'branch_name' => 'شعبه تجاری', 'account_number' => '1002-' . rand(1000000, 9999999), 'currency_code' => 'CNY', 'balance' => 1000000],
-            ['name' => 'بانک پاسارگاد', 'branch_name' => 'شعبه فروشگاهی', 'account_number' => '1003-' . rand(1000000, 9999999), 'currency_code' => 'IRR', 'balance' => 5000000000],
+            ['name' => 'بانک ملی', 'branch_name' => 'شعبه مرکزی', 'account_number' => '1001-' . rand(1000000, 9999999), 'currency_code' => 'IRR', 'balance' => 10000000000, 'account_id' => $bankAccountId],
+            ['name' => 'بانک ملت', 'branch_name' => 'شعبه تجاری', 'account_number' => '1002-' . rand(1000000, 9999999), 'currency_code' => 'CNY', 'balance' => 1000000, 'account_id' => $bankAccountId],
+            ['name' => 'بانک پاسارگاد', 'branch_name' => 'شعبه فروشگاهی', 'account_number' => '1003-' . rand(1000000, 9999999), 'currency_code' => 'IRR', 'balance' => 5000000000, 'account_id' => $bankAccountId],
         ];
 
         foreach ($banks as $bank) {
@@ -40,9 +43,12 @@ class TreasurySimulator extends BaseSimulator
 
     protected function createCashBoxes(): void
     {
+        // پیدا کردن حساب صندوق
+        $cashAccountId = DB::table('accounts')->where('code', '1-1-1')->value('id');
+        
         $cashBoxes = [
-            ['name' => 'صندوق اصلی فروشگاه', 'location' => 'فروشگاه طبقه اول', 'currency_code' => 'IRR', 'balance' => 500000000],
-            ['name' => 'صندوق خرده فروشی', 'location' => 'فروشگاه طبقه دوم', 'currency_code' => 'IRR', 'balance' => 200000000],
+            ['name' => 'صندوق اصلی فروشگاه', 'location' => 'فروشگاه طبقه اول', 'currency_code' => 'IRR', 'balance' => 500000000, 'account_id' => $cashAccountId],
+            ['name' => 'صندوق خرده فروشی', 'location' => 'فروشگاه طبقه دوم', 'currency_code' => 'IRR', 'balance' => 200000000, 'account_id' => $cashAccountId],
         ];
 
         foreach ($cashBoxes as $cashBox) {
