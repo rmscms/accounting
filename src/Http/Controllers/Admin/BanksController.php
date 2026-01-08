@@ -10,7 +10,7 @@ use RMS\Core\Data\Field;
 /**
  * کنترلر مدیریت بانک‌ها
  */
-class BanksController extends AdminController
+class BanksController extends AccountingAdminController
 {
     protected string $model = Bank::class;
     protected string $indexView = 'accounting::admin.banks.index';
