@@ -2,145 +2,97 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
-use Illuminate\Http\Request;
 use RMS\Accounting\Models\Expense;
-use RMS\Accounting\Services\ExpenseService;
-use RMS\Core\Http\Controllers\AdminController;
+use Illuminate\Http\Request;
+use RMS\Core\Data\Field;
+use RMS\Core\Contracts\List\HasList;
+use RMS\Core\Contracts\Form\HasForm;
+use RMS\Core\Contracts\Filter\ShouldFilter;
 
-/**
- * کنترلر مدیریت هزینه‌ها
- */
-class ExpensesController extends AdminController
+class ExpensesController extends AccountingAdminController implements HasList, HasForm, ShouldFilter
 {
-    protected string $model = Expense::class;
-    protected string $indexView = 'accounting::admin.expenses.index';
-    protected string $formView = 'accounting::admin.expenses.form';
-    
-    protected ExpenseService $expenseService;
-
-    public function __construct(ExpenseService $expenseService)
+    public function table(): string
     {
-        $this->expenseService = $expenseService;
+        return 'expenses';
     }
 
-    /**
-     * لیست هزینه‌ها
-     */
-    public function index(Request $request)
+    public function modelName(): string
     {
-        $query = Expense::with(['category', 'currency', 'bank', 'cashBox'])
-            ->orderByDesc('expense_date');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('expense_category_id')) {
-            $query->where('expense_category_id', $request->expense_category_id);
-        }
-
-        if ($request->filled('store_id')) {
-            $query->where('store_id', $request->store_id);
-        }
-
-        if ($request->filled('from_date')) {
-            $query->whereDate('expense_date', '>=', $request->from_date);
-        }
-
-        if ($request->filled('to_date')) {
-            $query->whereDate('expense_date', '<=', $request->to_date);
-        }
-
-        $expenses = $query->paginate(50);
-
-        // آمار
-        $pendingCount = Expense::where('status', Expense::STATUS_PENDING)->count();
-        $totalThisMonth = Expense::where('status', Expense::STATUS_APPROVED)
-            ->whereMonth('expense_date', now()->month)
-            ->sum('total_amount');
-
-        return view($this->indexView, compact('expenses', 'pendingCount', 'totalThisMonth'));
+        return Expense::class;
     }
 
-    /**
-     * فرم ایجاد/ویرایش هزینه
-     */
-    public function form(?int $id = null)
+    public function baseRoute(): string
     {
-        $expense = $id ? Expense::with('items')->findOrFail($id) : new Expense();
-        
-        $categories = \RMS\Accounting\Models\ExpenseCategory::where('active', true)
-            ->orderBy('name')
-            ->get();
-
-        $banks = \RMS\Accounting\Models\Bank::where('active', true)->get();
-        $cashBoxes = \RMS\Accounting\Models\CashBox::where('active', true)->get();
-
-        return view($this->formView, compact('expense', 'categories', 'banks', 'cashBoxes'));
+        return 'admin.accounting.expenses';
     }
 
-    /**
-     * ذخیره هزینه
-     */
-    public function store(Request $request)
+    public function routeParameter(): string
     {
-        $validated = $request->validate([
-            'expense_category_id' => 'required|exists:expense_categories,id',
-            'store_id' => 'required|integer',
-            'expense_date' => 'required|date',
-            'description' => 'required|string|max:500',
-            'bank_id' => 'nullable|exists:banks,id',
-            'cash_box_id' => 'nullable|exists:cash_boxes,id',
-            'currency_code' => 'required|string|max:3',
-            'fx_rate_at_expense' => 'required|numeric|min:0',
-            'status' => 'required|in:pending,approved,rejected',
-            'notes' => 'nullable|string',
-            'receipt_image' => 'nullable|string|max:500',
-            'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string|max:500',
-            'items.*.quantity' => 'required|numeric|min:0',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.total_amount' => 'required|numeric|min:0',
-        ]);
+        return 'expense';
+    }
 
-        $items = $validated['items'];
-        unset($validated['items']);
+    public function getFieldsForm(): array
+    {
+        return [
+            Field::string('expense_number', trans('accounting::accounting.expense.expense_number'))->required(),
+            Field::date('expense_date', trans('accounting::accounting.expense.expense_date'))->required(),
+            Field::number('expense_category_id', trans('accounting::accounting.expense.category'))->required(),
+            Field::number('total_amount', trans('accounting::accounting.expense.total_amount'))->required(),
+            Field::textarea('description', trans('accounting::accounting.expense.description'))->optional(),
+            Field::select('status', trans('accounting::accounting.expense.status'))
+                ->options([
+                    'pending' => trans('accounting::accounting.statuses.pending'),
+                    'approved' => trans('accounting::accounting.statuses.approved'),
+                    'rejected' => trans('accounting::accounting.statuses.rejected'),
+                    'paid' => trans('accounting::accounting.statuses.paid'),
+                ])
+                ->withDefaultValue('pending')
+                ->required(),
+        ];
+    }
 
-        $expense = $this->expenseService->createExpense($validated, $items);
+    public function getListFields(): array
+    {
+        return [
+            Field::make('id')->withTitle(trans('accounting::accounting.common.id'))->sortable()->width('80px'),
+            Field::make('expense_number')->withTitle(trans('accounting::accounting.expense.expense_number'))->searchable()->sortable()->width('150px'),
+            Field::make('expense_date')->withTitle(trans('accounting::accounting.expense.expense_date'))->sortable()->width('120px'),
+            Field::make('total_amount')->withTitle(trans('accounting::accounting.expense.total_amount'))->sortable()->width('120px'),
+            Field::make('status')->withTitle(trans('accounting::accounting.expense.status'))->sortable()->width('100px'),
+            Field::make('created_at')->withTitle(trans('accounting::accounting.common.created_at'))->sortable()->width('150px'),
+        ];
+    }
 
-        return redirect()
-            ->route('admin.accounting.expenses.index')
-            ->with('success', trans('accounting::accounting.expense_created'));
+    public function filters(): array
+    {
+        return [
+            Field::select('status', trans('accounting::accounting.expense.status'))
+                ->options([
+                    '' => trans('accounting::accounting.common.all'),
+                    'pending' => trans('accounting::accounting.statuses.pending'),
+                    'approved' => trans('accounting::accounting.statuses.approved'),
+                    'rejected' => trans('accounting::accounting.statuses.rejected'),
+                    'paid' => trans('accounting::accounting.statuses.paid'),
+                ]),
+        ];
     }
 
     /**
      * تایید هزینه
      */
-    public function approve(int $id)
+    public function approve(Request $request, int $id)
     {
-        try {
-            $this->expenseService->approveExpense($id);
-
-            return response()->json([
-                'success' => true,
-                'message' => trans('accounting::accounting.expense_approved')
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
+        $expense = Expense::findOrFail($id);
+        
+        if ($expense->status !== 'pending') {
+            return redirect()->back()->with('error', trans('accounting::accounting.errors.expense_not_pending'));
         }
-    }
 
-    /**
-     * نمایش جزئیات هزینه
-     */
-    public function show(int $id)
-    {
-        $expense = Expense::with(['category', 'items', 'currency', 'bank', 'cashBox', 'document'])
-            ->findOrFail($id);
+        $expense->status = 'approved';
+        $expense->approved_by = auth()->id();
+        $expense->approved_at = now();
+        $expense->save();
 
-        return view('accounting::admin.expenses.show', compact('expense'));
+        return redirect()->back()->with('success', trans('accounting::accounting.messages.expense_approved'));
     }
 }

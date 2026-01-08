@@ -2,113 +2,81 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
-use Illuminate\Http\Request;
 use RMS\Accounting\Models\CustomerInvoice;
-use RMS\Accounting\Services\CustomerInvoiceService;
-use RMS\Core\Http\Controllers\AdminController;
+use Illuminate\Http\Request;
+use RMS\Core\Data\Field;
+use RMS\Core\Contracts\List\HasList;
+use RMS\Core\Contracts\Form\HasForm;
+use RMS\Core\Contracts\Filter\ShouldFilter;
 
-/**
- * کنترلر فاکتورهای مشتریان
- */
-class CustomerInvoicesController extends AdminController
+class CustomerInvoicesController extends AccountingAdminController implements HasList, HasForm, ShouldFilter
 {
-    protected string $model = CustomerInvoice::class;
-    protected string $indexView = 'accounting::admin.customer-invoices.index';
-    protected string $formView = 'accounting::admin.customer-invoices.form';
-    
-    protected CustomerInvoiceService $invoiceService;
-
-    public function __construct(CustomerInvoiceService $invoiceService)
+    public function table(): string
     {
-        $this->invoiceService = $invoiceService;
+        return 'customer_invoices';
     }
 
-    /**
-     * لیست فاکتورها
-     */
-    public function index(Request $request)
+    public function modelName(): string
     {
-        $query = CustomerInvoice::with(['currency', 'document'])
-            ->orderByDesc('invoice_date');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('payment_status')) {
-            $query->where('payment_status', $request->payment_status);
-        }
-
-        if ($request->filled('store_id')) {
-            $query->where('store_id', $request->store_id);
-        }
-
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        if ($request->filled('from_date')) {
-            $query->whereDate('invoice_date', '>=', $request->from_date);
-        }
-
-        if ($request->filled('to_date')) {
-            $query->whereDate('invoice_date', '<=', $request->to_date);
-        }
-
-        $invoices = $query->paginate(50);
-
-        // فاکتورهای معوق
-        $overdueCount = CustomerInvoice::overdue()->count();
-
-        return view($this->indexView, compact('invoices', 'overdueCount'));
+        return CustomerInvoice::class;
     }
 
-    /**
-     * فرم ایجاد/ویرایش فاکتور
-     */
-    public function form(?int $id = null)
+    public function baseRoute(): string
     {
-        $invoice = $id ? CustomerInvoice::with('items')->findOrFail($id) : new CustomerInvoice();
-
-        return view($this->formView, compact('invoice'));
+        return 'admin.accounting.customer-invoices';
     }
 
-    /**
-     * ذخیره فاکتور
-     */
-    public function store(Request $request)
+    public function routeParameter(): string
     {
-        $validated = $request->validate([
-            'customer_id' => 'required|integer',
-            'store_id' => 'required|integer',
-            'order_id' => 'nullable|integer',
-            'invoice_date' => 'required|date',
-            'due_date' => 'nullable|date',
-            'subtotal' => 'required|numeric|min:0',
-            'tax_amount' => 'nullable|numeric|min:0',
-            'discount_amount' => 'nullable|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
-            'currency_code' => 'required|string|max:3',
-            'fx_rate_at_invoice' => 'required|numeric|min:0',
-            'status' => 'required|in:draft,issued,cancelled',
-            'notes' => 'nullable|string',
-        ]);
-
-        $invoice = $this->invoiceService->createInvoice($validated);
-
-        return redirect()
-            ->route('admin.accounting.customer-invoices.index')
-            ->with('success', trans('accounting::accounting.invoice_created'));
+        return 'customer_invoice';
     }
 
-    /**
-     * نمایش جزئیات فاکتور
-     */
-    public function show(int $id)
+    public function getFieldsForm(): array
     {
-        $invoice = CustomerInvoice::with(['currency', 'document', 'payments'])
-            ->findOrFail($id);
+        return [
+            Field::string('invoice_number', trans('accounting::accounting.invoice.invoice_number'))->required(),
+            Field::date('invoice_date', trans('accounting::accounting.invoice.invoice_date'))->required(),
+            Field::number('customer_id', trans('accounting::accounting.invoice.customer_id'))->required(),
+            Field::number('subtotal', trans('accounting::accounting.invoice.subtotal'))->required(),
+            Field::number('tax_amount', trans('accounting::accounting.invoice.tax_amount'))->withDefaultValue(0),
+            Field::number('discount_amount', trans('accounting::accounting.invoice.discount_amount'))->withDefaultValue(0),
+            Field::number('total_amount', trans('accounting::accounting.invoice.total_amount'))->required(),
+            Field::select('status', trans('accounting::accounting.invoice.status'))
+                ->options([
+                    'draft' => trans('accounting::accounting.statuses.draft'),
+                    'issued' => trans('accounting::accounting.statuses.issued'),
+                    'paid' => trans('accounting::accounting.statuses.paid'),
+                    'cancelled' => trans('accounting::accounting.statuses.cancelled'),
+                ])
+                ->withDefaultValue('draft')
+                ->required(),
+        ];
+    }
 
-        return view('accounting::admin.customer-invoices.show', compact('invoice'));
+    public function getListFields(): array
+    {
+        return [
+            Field::make('id')->withTitle(trans('accounting::accounting.common.id'))->sortable()->width('80px'),
+            Field::make('invoice_number')->withTitle(trans('accounting::accounting.invoice.invoice_number'))->searchable()->sortable()->width('150px'),
+            Field::make('invoice_date')->withTitle(trans('accounting::accounting.invoice.invoice_date'))->sortable()->width('120px'),
+            Field::make('customer_id')->withTitle(trans('accounting::accounting.invoice.customer_id'))->sortable()->width('100px'),
+            Field::make('total_amount')->withTitle(trans('accounting::accounting.invoice.total_amount'))->sortable()->width('120px'),
+            Field::make('status')->withTitle(trans('accounting::accounting.invoice.status'))->sortable()->width('100px'),
+            Field::make('created_at')->withTitle(trans('accounting::accounting.common.created_at'))->sortable()->width('150px'),
+        ];
+    }
+
+    public function filters(): array
+    {
+        return [
+            Field::select('status', trans('accounting::accounting.invoice.status'))
+                ->options([
+                    '' => trans('accounting::accounting.common.all'),
+                    'draft' => trans('accounting::accounting.statuses.draft'),
+                    'issued' => trans('accounting::accounting.statuses.issued'),
+                    'paid' => trans('accounting::accounting.statuses.paid'),
+                    'cancelled' => trans('accounting::accounting.statuses.cancelled'),
+                ]),
+        ];
     }
 }

@@ -2,111 +2,82 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
-use Illuminate\Http\Request;
 use RMS\Accounting\Models\CustomerPayment;
-use RMS\Accounting\Services\CustomerPaymentService;
-use RMS\Core\Http\Controllers\AdminController;
+use Illuminate\Http\Request;
+use RMS\Core\Data\Field;
+use RMS\Core\Contracts\List\HasList;
+use RMS\Core\Contracts\Form\HasForm;
+use RMS\Core\Contracts\Filter\ShouldFilter;
 
-/**
- * کنترلر دریافت‌های مشتریان
- */
-class CustomerPaymentsController extends AdminController
+class CustomerPaymentsController extends AccountingAdminController implements HasList, HasForm, ShouldFilter
 {
-    protected string $model = CustomerPayment::class;
-    protected string $indexView = 'accounting::admin.customer-payments.index';
-    protected string $formView = 'accounting::admin.customer-payments.form';
-    
-    protected CustomerPaymentService $paymentService;
-
-    public function __construct(CustomerPaymentService $paymentService)
+    public function table(): string
     {
-        $this->paymentService = $paymentService;
+        return 'customer_payments';
     }
 
-    public function index(Request $request)
+    public function modelName(): string
     {
-        $query = CustomerPayment::with(['paymentMethod', 'bank', 'document'])
-            ->orderByDesc('payment_date');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        if ($request->filled('payment_method_id')) {
-            $query->where('payment_method_id', $request->payment_method_id);
-        }
-
-        if ($request->filled('from_date')) {
-            $query->whereDate('payment_date', '>=', $request->from_date);
-        }
-
-        if ($request->filled('to_date')) {
-            $query->whereDate('payment_date', '<=', $request->to_date);
-        }
-
-        $payments = $query->paginate(50);
-
-        // آمار
-        $totalCompleted = CustomerPayment::where('status', 'completed')
-            ->sum('amount');
-
-        $totalPending = CustomerPayment::where('status', 'pending')
-            ->sum('amount');
-
-        return view($this->indexView, compact('payments', 'totalCompleted', 'totalPending'));
+        return CustomerPayment::class;
     }
 
-    public function form(?int $id = null)
+    public function baseRoute(): string
     {
-        $payment = $id ? CustomerPayment::with('customerInvoice')->findOrFail($id) : new CustomerPayment();
-
-        $paymentMethods = \RMS\Accounting\Models\PaymentMethod::where('active', true)
-            ->pluck('name', 'id');
-
-        $banks = \RMS\Accounting\Models\Bank::where('active', true)
-            ->pluck('name', 'id');
-
-        return view($this->formView, compact('payment', 'paymentMethods', 'banks'));
+        return 'admin.accounting.customer-payments';
     }
 
-    public function store(Request $request)
+    public function routeParameter(): string
     {
-        $validated = $request->validate([
-            'customer_id' => 'required|integer',
-            'customer_invoice_id' => 'nullable|exists:customer_invoices,id',
-            'payment_method_id' => 'required|exists:payment_methods,id',
-            'amount' => 'required|numeric|min:0',
-            'currency_code' => 'required|string|max:3',
-            'fx_rate_at_payment' => 'required|numeric|min:0',
-            'payment_date' => 'required|date',
-            'bank_id' => 'nullable|exists:banks,id',
-            'cash_box_id' => 'nullable|exists:cash_boxes,id',
-            'reference_number' => 'nullable|string|max:100',
-            'status' => 'required|in:pending,completed,failed,reversed,cancelled',
-            'notes' => 'nullable|string',
-        ]);
-
-        $this->paymentService->createPayment($validated);
-
-        return redirect()
-            ->route('admin.accounting.customer-payments.index')
-            ->with('success', trans('accounting::accounting.payment_created'));
+        return 'customer_payment';
     }
 
-    public function show(int $id)
+    public function getFieldsForm(): array
     {
-        $payment = CustomerPayment::with([
-            'customerInvoice',
-            'paymentMethod',
-            'bank',
-            'cashBox',
-            'document.ledgers'
-        ])->findOrFail($id);
+        return [
+            Field::string('payment_number', trans('accounting::accounting.payment.payment_number'))->required(),
+            Field::date('payment_date', trans('accounting::accounting.payment.payment_date'))->required(),
+            Field::number('customer_id', trans('accounting::accounting.payment.customer_id'))->required(),
+            Field::number('amount', trans('accounting::accounting.payment.amount'))->required(),
+            Field::select('payment_method', trans('accounting::accounting.payment.payment_method'))
+                ->options([
+                    'cash' => trans('accounting::accounting.payment_methods.cash'),
+                    'cheque' => trans('accounting::accounting.payment_methods.cheque'),
+                    'pos' => trans('accounting::accounting.payment_methods.pos'),
+                    'card_to_card' => trans('accounting::accounting.payment_methods.card_to_card'),
+                    'online' => trans('accounting::accounting.payment_methods.online'),
+                    'wallet' => trans('accounting::accounting.payment_methods.wallet'),
+                ])
+                ->required(),
+            Field::textarea('notes', trans('accounting::accounting.payment.notes'))->optional(),
+        ];
+    }
 
-        return view('accounting::admin.customer-payments.show', compact('payment'));
+    public function getListFields(): array
+    {
+        return [
+            Field::make('id')->withTitle(trans('accounting::accounting.common.id'))->sortable()->width('80px'),
+            Field::make('payment_number')->withTitle(trans('accounting::accounting.payment.payment_number'))->searchable()->sortable()->width('150px'),
+            Field::make('payment_date')->withTitle(trans('accounting::accounting.payment.payment_date'))->sortable()->width('120px'),
+            Field::make('customer_id')->withTitle(trans('accounting::accounting.payment.customer_id'))->sortable()->width('100px'),
+            Field::make('amount')->withTitle(trans('accounting::accounting.payment.amount'))->sortable()->width('120px'),
+            Field::make('payment_method')->withTitle(trans('accounting::accounting.payment.payment_method'))->sortable()->width('120px'),
+            Field::make('created_at')->withTitle(trans('accounting::accounting.common.created_at'))->sortable()->width('150px'),
+        ];
+    }
+
+    public function filters(): array
+    {
+        return [
+            Field::select('payment_method', trans('accounting::accounting.payment.payment_method'))
+                ->options([
+                    '' => trans('accounting::accounting.common.all'),
+                    'cash' => trans('accounting::accounting.payment_methods.cash'),
+                    'cheque' => trans('accounting::accounting.payment_methods.cheque'),
+                    'pos' => trans('accounting::accounting.payment_methods.pos'),
+                    'card_to_card' => trans('accounting::accounting.payment_methods.card_to_card'),
+                    'online' => trans('accounting::accounting.payment_methods.online'),
+                    'wallet' => trans('accounting::accounting.payment_methods.wallet'),
+                ]),
+        ];
     }
 }
