@@ -41,12 +41,11 @@ class AccountingServiceProvider extends ServiceProvider
         // Register commands
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \RMS\Accounting\Console\Commands\AccountingInstallCommand::class,
-                \RMS\Accounting\Console\Commands\CloseFiscalYearCommand::class,
-                \RMS\Accounting\Console\Commands\ChequeReminderCommand::class,
-                \RMS\Accounting\Console\Commands\UpdateExchangeRatesCommand::class,
-                \RMS\Accounting\Console\Commands\RecalculateBalancesCommand::class,
-                \RMS\Accounting\Console\Commands\AutoReconcileCommand::class,
+                \RMS\Accounting\Console\AccountingInstallCommand::class,
+                \RMS\Accounting\Console\CloseFiscalYearCommand::class,
+                \RMS\Accounting\Console\ChequeReminderCommand::class,
+                \RMS\Accounting\Console\UpdateExchangeRatesCommand::class,
+                \RMS\Accounting\Console\AutoReconcileCommand::class,
             ]);
         }
     }
