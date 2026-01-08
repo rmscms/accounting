@@ -5,14 +5,13 @@ namespace RMS\Accounting\Http\Controllers\Admin;
 use RMS\Accounting\Models\Currency;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Model;
-use RMS\Core\Controllers\Admin\AdminController;
 use RMS\Core\Data\Field;
 use RMS\Core\Contracts\List\HasList;
 use RMS\Core\Contracts\Form\HasForm;
 use RMS\Core\Contracts\Filter\ShouldFilter;
 use RMS\Core\Contracts\Actions\ChangeBoolField;
 
-class CurrenciesController extends AdminController implements
+class CurrenciesController extends AccountingAdminController implements
     HasList,
     HasForm,
     ShouldFilter,
