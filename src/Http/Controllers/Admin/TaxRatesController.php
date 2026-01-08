@@ -4,14 +4,13 @@ namespace RMS\Accounting\Http\Controllers\Admin;
 
 use RMS\Accounting\Models\TaxRate;
 use Illuminate\Http\Request;
-use RMS\Core\Controllers\Admin\AdminController;
 use RMS\Core\Data\Field;
 use RMS\Core\Contracts\List\HasList;
 use RMS\Core\Contracts\Form\HasForm;
 use RMS\Core\Contracts\Filter\ShouldFilter;
 use RMS\Core\Contracts\Actions\ChangeBoolField;
 
-class TaxRatesController extends AdminController implements
+class TaxRatesController extends AccountingAdminController implements
     HasList,
     HasForm,
     ShouldFilter,
