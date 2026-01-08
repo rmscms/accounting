@@ -92,7 +92,7 @@ class LedgerController extends AccountingAdminController
     /**
      * Export به Excel
      */
-    public function export(Request $request)
+    public function exportLedger(Request $request)
     {
         // TODO: Implement export functionality
         return response()->json(['message' => 'Export functionality coming soon']);
