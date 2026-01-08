@@ -87,6 +87,9 @@ class SimulateAccountingDataCommand extends Command
         $this->warn('⚠️  در حال پاک کردن داده‌های قبلی...');
 
         DB::transaction(function () {
+            // Disable FK constraints temporarily
+            DB::statement('PRAGMA foreign_keys = OFF');
+            
             $tables = [
                 'payment_reconciliations',
                 'settlements',
@@ -126,6 +129,9 @@ class SimulateAccountingDataCommand extends Command
                     // Table might not exist yet
                 }
             }
+            
+            // Re-enable FK constraints
+            DB::statement('PRAGMA foreign_keys = ON');
         });
 
         $this->info('  ✅ داده‌های قبلی پاک شدند');
