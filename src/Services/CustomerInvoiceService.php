@@ -4,6 +4,7 @@ namespace RMS\Accounting\Services;
 
 use RMS\Accounting\Models\CustomerInvoice;
 use RMS\Accounting\Models\CustomerBalance;
+use RMS\Accounting\Events\InvoiceCreatedEvent;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -47,6 +48,13 @@ class CustomerInvoiceService
 
             // بروزرسانی مانده مشتری
             $this->updateCustomerBalance($invoice->customer_id, $invoice->store_id);
+
+            // Dispatch Event
+            event(new InvoiceCreatedEvent($invoice, [
+                'store_id' => $invoice->store_id,
+                'customer_id' => $invoice->customer_id,
+                'total_amount' => $invoice->total_amount,
+            ]));
 
             DB::commit();
             return $invoice;
