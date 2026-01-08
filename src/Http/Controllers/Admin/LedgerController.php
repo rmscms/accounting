@@ -11,18 +11,10 @@ use Illuminate\Http\Request;
  */
 class LedgerController extends AccountingAdminController
 {
-    protected LedgerService $ledgerService;
-
-    public function __construct(LedgerService $ledgerService)
-    {
-        parent::__construct();
-        $this->ledgerService = $ledgerService;
-    }
-
     /**
      * نمایش دفتر کل
      */
-    public function index(Request $request)
+    public function index(Request $request, LedgerService $ledgerService)
     {
         $query = FinancialLedger::with(['account', 'document', 'fiscalYear'])
             ->orderBy('transaction_date', 'desc')
