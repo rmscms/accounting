@@ -2,181 +2,130 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
-use Illuminate\Http\Request;
 use RMS\Accounting\Models\Account;
-use RMS\Accounting\Services\AccountService;
-use RMS\Core\Http\Controllers\AdminController;
+use Illuminate\Http\Request;
+use RMS\Core\Data\Field;
+use RMS\Core\Contracts\List\HasList;
+use RMS\Core\Contracts\Form\HasForm;
+use RMS\Core\Contracts\Filter\ShouldFilter;
+use RMS\Core\Contracts\Actions\ChangeBoolField;
 
-/**
- * کنترلر مدیریت حساب‌ها (Chart of Accounts)
- */
-class AccountsController extends AdminController
+class AccountsController extends AccountingAdminController implements HasList, HasForm, ShouldFilter, ChangeBoolField
 {
-    protected string $model = Account::class;
-    protected string $indexView = 'accounting::admin.accounts.index';
-    protected string $formView = 'accounting::admin.accounts.form';
-    
-    protected AccountService $accountService;
-
-    public function __construct(AccountService $accountService)
+    public function table(): string
     {
-        $this->accountService = $accountService;
+        return 'accounts';
+    }
+
+    public function modelName(): string
+    {
+        return Account::class;
+    }
+
+    public function baseRoute(): string
+    {
+        return 'admin.accounting.accounts';
+    }
+
+    public function routeParameter(): string
+    {
+        return 'account';
+    }
+
+    public function getFieldsForm(): array
+    {
+        return [
+            Field::string('code', trans('accounting::accounting.account.code'))->required(),
+            Field::string('name', trans('accounting::accounting.account.name'))->required(),
+            Field::select('account_type', trans('accounting::accounting.account.account_type'))
+                ->options([
+                    'asset' => trans('accounting::accounting.account_types.asset'),
+                    'liability' => trans('accounting::accounting.account_types.liability'),
+                    'equity' => trans('accounting::accounting.account_types.equity'),
+                    'revenue' => trans('accounting::accounting.account_types.revenue'),
+                    'expense' => trans('accounting::accounting.account_types.expense'),
+                ])
+                ->required(),
+            Field::select('parent_id', trans('accounting::accounting.account.parent'))
+                ->optionsFrom(Account::class, 'name', 'id')
+                ->optional(),
+            Field::number('level', trans('accounting::accounting.account.level'))->withDefaultValue(1)->required(),
+            Field::boolean('active', trans('accounting::accounting.account.active'))->withDefaultValue(true),
+            Field::string('currency_code', trans('accounting::accounting.account.currency_code'))->optional(),
+            Field::textarea('description', trans('accounting::accounting.account.description'))->optional(),
+        ];
+    }
+
+    public function getListFields(): array
+    {
+        return [
+            Field::make('id')->withTitle(trans('accounting::accounting.common.id'))->sortable()->width('80px'),
+            Field::make('code')->withTitle(trans('accounting::accounting.account.code'))->searchable()->sortable()->width('120px'),
+            Field::make('name')->withTitle(trans('accounting::accounting.account.name'))->searchable()->sortable(),
+            Field::make('account_type')->withTitle(trans('accounting::accounting.account.account_type'))->sortable()->width('120px'),
+            Field::make('level')->withTitle(trans('accounting::accounting.account.level'))->sortable()->width('80px'),
+            Field::make('active')->withTitle(trans('accounting::accounting.account.active'))->boolean()->sortable()->width('100px'),
+        ];
+    }
+
+    public function filters(): array
+    {
+        return [
+            Field::select('account_type', trans('accounting::accounting.account.account_type'))
+                ->options([
+                    '' => trans('accounting::accounting.common.all'),
+                    'asset' => trans('accounting::accounting.account_types.asset'),
+                    'liability' => trans('accounting::accounting.account_types.liability'),
+                    'equity' => trans('accounting::accounting.account_types.equity'),
+                    'revenue' => trans('accounting::accounting.account_types.revenue'),
+                    'expense' => trans('accounting::accounting.account_types.expense'),
+                ]),
+            Field::select('active', trans('accounting::accounting.account.active'))
+                ->options([
+                    '' => trans('accounting::accounting.common.all'),
+                    '1' => trans('accounting::accounting.common.active'),
+                    '0' => trans('accounting::accounting.common.inactive'),
+                ]),
+        ];
     }
 
     /**
-     * لیست حساب‌ها
+     * صفحه درخت حساب‌ها (Custom Page)
      */
-    public function index(Request $request)
+    public function tree(Request $request)
     {
-        $query = Account::with('parent')->orderBy('code');
-
-        if ($request->filled('account_type')) {
-            $query->where('account_type', $request->account_type);
-        }
-
-        if ($request->filled('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('code', 'like', "%{$request->search}%")
-                  ->orWhere('name', 'like', "%{$request->search}%");
-            });
-        }
-
-        $accounts = $query->paginate(50);
-
-        return view($this->indexView, compact('accounts'));
-    }
-
-    /**
-     * درخت حساب‌ها
-     */
-    public function tree()
-    {
-        $tree = $this->accountService->getAccountTree();
-
-        return view('accounting::admin.accounts.tree', compact('tree'));
-    }
-
-    /**
-     * فرم ایجاد/ویرایش
-     */
-    public function form(?int $id = null)
-    {
-        $account = $id ? Account::findOrFail($id) : new Account();
-        
-        $parentAccounts = Account::whereNull('parent_id')
-            ->orWhere('level', '<', 4)
+        $accounts = Account::with('parent', 'children')
+            ->whereNull('parent_id')
             ->orderBy('code')
             ->get();
 
-        return view($this->formView, compact('account', 'parentAccounts'));
+        return $this->view->usePackageNamespace('accounting')
+            ->setTheme('admin')
+            ->setTpl('accounts.tree')
+            ->withPlugins(['jstree'])
+            ->withCss('vendor/accounting/admin/css/accounts-tree.css', true)
+            ->withJs('vendor/accounting/admin/js/accounts-tree.js', true)
+            ->with([
+                'accounts' => $accounts,
+            ]);
     }
 
     /**
-     * ذخیره حساب
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'code' => 'nullable|string|max:50|unique:accounts,code',
-            'name' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:accounts,id',
-            'account_type' => 'required|in:asset,liability,equity,revenue,expense',
-            'currency_code' => 'nullable|string|max:3',
-            'description' => 'nullable|string',
-        ]);
-
-        $account = $this->accountService->createAccount($validated);
-
-        return redirect()
-            ->route('admin.accounting.accounts.index')
-            ->with('success', trans('accounting::accounting.account_created'));
-    }
-
-    /**
-     * بروزرسانی حساب
-     */
-    public function update(Request $request, int $id)
-    {
-        $account = Account::findOrFail($id);
-
-        if ($account->is_system) {
-            return back()->with('error', trans('accounting::accounting.cannot_edit_system_account'));
-        }
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'active' => 'boolean',
-        ]);
-
-        $account->update($validated);
-
-        return redirect()
-            ->route('admin.accounting.accounts.index')
-            ->with('success', trans('accounting::accounting.account_updated'));
-    }
-
-    /**
-     * گردش حساب
+     * صفحه صورت حساب (Custom Page)
      */
     public function statement(Request $request, int $id)
     {
         $account = Account::findOrFail($id);
-
-        $fromDate = $request->get('from_date');
-        $toDate = $request->get('to_date');
-        $storeId = $request->get('store_id');
-
-        $ledgers = $this->accountService->getAccountStatement(
-            accountId: $id,
-            fromDate: $fromDate,
-            toDate: $toDate,
-            storeId: $storeId
-        );
-
-        $balance = $this->accountService->getAccountBalance(
-            accountId: $id,
-            fromDate: $fromDate,
-            toDate: $toDate,
-            storeId: $storeId
-        );
-
-        return view('accounting::admin.accounts.statement', compact(
-            'account',
-            'ledgers',
-            'balance',
-            'fromDate',
-            'toDate',
-            'storeId'
-        ));
-    }
-
-    /**
-     * حذف حساب
-     */
-    public function destroy(int $id)
-    {
-        $account = Account::findOrFail($id);
-
-        if ($account->is_system) {
-            return response()->json([
-                'success' => false,
-                'message' => trans('accounting::accounting.cannot_delete_system_account')
-            ], 403);
-        }
-
-        if ($account->ledgers()->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => trans('accounting::accounting.account_has_transactions')
-            ], 403);
-        }
-
-        $account->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => trans('accounting::accounting.account_deleted')
-        ]);
+        
+        // TODO: دریافت تراکنش‌های حساب از LedgerService
+        
+        return $this->view->usePackageNamespace('accounting')
+            ->setTheme('admin')
+            ->setTpl('accounts.statement')
+            ->withCss('vendor/accounting/admin/css/account-statement.css', true)
+            ->withJs('vendor/accounting/admin/js/account-statement.js', true)
+            ->with([
+                'account' => $account,
+            ]);
     }
 }
