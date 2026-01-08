@@ -121,7 +121,7 @@ class SimulateAccountingDataCommand extends Command
 
             foreach ($tables as $table) {
                 try {
-                    DB::table($table)->truncate();
+                    DB::statement("DELETE FROM {$table}");
                 } catch (\Exception $e) {
                     // Table might not exist yet
                 }
