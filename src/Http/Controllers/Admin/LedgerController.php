@@ -14,7 +14,7 @@ class LedgerController extends AccountingAdminController
     /**
      * نمایش دفتر کل
      */
-    public function index(Request $request, LedgerService $ledgerService)
+    public function index(Request $request)
     {
         $query = FinancialLedger::with(['account', 'document', 'fiscalYear'])
             ->orderBy('transaction_date', 'desc')

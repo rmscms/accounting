@@ -17,12 +17,12 @@ class DashboardController extends AccountingAdminController
     /**
      * نمایش داشبورد حسابداری
      */
-    public function index(
-        Request $request,
-        LedgerService $ledgerService,
-        CustomerInvoiceService $invoiceService,
-        ExpenseService $expenseService
-    ) {
+    public function index(Request $request)
+    {
+        $ledgerService = app(LedgerService::class);
+        $invoiceService = app(CustomerInvoiceService::class);
+        $expenseService = app(ExpenseService::class);
+
         // دریافت دوره مالی فعال
         $fiscalYear = FiscalYear::where('is_active', true)->first();
         
