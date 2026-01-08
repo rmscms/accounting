@@ -111,7 +111,7 @@ class CurrencySimulator extends BaseSimulator
                     'currency_code' => $currency,
                     'rate_to_irr' => round($newRate, 2),
                     'rate_date' => $currentDate->format('Y-m-d'),
-                    'source' => 'simulation',
+                    'source' => 'system',
                     'created_at' => now(),
                 ];
             }
