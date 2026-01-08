@@ -57,11 +57,11 @@ class AccountsSimulator extends BaseSimulator
             ['code' => '3-2', 'name' => 'سود انباشته', 'level' => 2, 'parent_id' => 17, 'account_type' => 'equity', 'is_system' => true, 'active' => true],
 
             // درآمد (Revenue) - 4
-            ['code' => '4', 'name' => 'درآمدها', 'level' => 1, 'parent_id' => null, 'account_type' => 'revenue', 'is_system' => true, 'active' => true],
-            ['code' => '4-1', 'name' => 'فروش', 'level' => 2, 'parent_id' => 20, 'account_type' => 'revenue', 'is_system' => true, 'active' => true],
-            ['code' => '4-1-1', 'name' => 'فروش کالا', 'level' => 3, 'parent_id' => 21, 'account_type' => 'revenue', 'is_system' => true, 'active' => true],
-            ['code' => '4-2', 'name' => 'سود تسعیر ارز', 'level' => 2, 'parent_id' => 20, 'account_type' => 'revenue', 'is_system' => true, 'active' => true],
-            ['code' => '4-3', 'name' => 'سایر درآمدها', 'level' => 2, 'parent_id' => 20, 'account_type' => 'revenue', 'is_system' => false, 'active' => true],
+            ['code' => '4', 'name' => 'درآمدها', 'level' => 1, 'parent_id' => null, 'account_type' => 'income', 'is_system' => true, 'active' => true],
+            ['code' => '4-1', 'name' => 'فروش', 'level' => 2, 'parent_id' => 20, 'account_type' => 'income', 'is_system' => true, 'active' => true],
+            ['code' => '4-1-1', 'name' => 'فروش کالا', 'level' => 3, 'parent_id' => 21, 'account_type' => 'income', 'is_system' => true, 'active' => true],
+            ['code' => '4-2', 'name' => 'سود تسعیر ارز', 'level' => 2, 'parent_id' => 20, 'account_type' => 'income', 'is_system' => true, 'active' => true],
+            ['code' => '4-3', 'name' => 'سایر درآمدها', 'level' => 2, 'parent_id' => 20, 'account_type' => 'income', 'is_system' => false, 'active' => true],
 
             // هزینه (Expense) - 5
             ['code' => '5', 'name' => 'هزینه‌ها', 'level' => 1, 'parent_id' => null, 'account_type' => 'expense', 'is_system' => true, 'active' => true],
