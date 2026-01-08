@@ -1,0 +1,160 @@
+{{-- Accounting Management --}}
+@php
+    $accountingChildren = [
+        [
+            'title' => 'داشبورد حسابداری',
+            'url' => route('admin.accounting.dashboard'),
+            'icon' => 'ph-chart-pie',
+            'routes' => ['admin.accounting.dashboard'],
+        ],
+        [
+            'title' => 'دفاتر',
+            'icon' => 'ph-books',
+            'children' => [
+                [
+                    'title' => 'دفتر کل',
+                    'url' => route('admin.accounting.ledger.index'),
+                    'routes' => ['admin.accounting.ledger.*'],
+                ],
+                [
+                    'title' => 'اسناد حسابداری',
+                    'url' => route('admin.accounting.documents.index'),
+                    'routes' => ['admin.accounting.documents.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'حساب‌ها',
+            'icon' => 'ph-list-dashes',
+            'children' => [
+                [
+                    'title' => 'لیست حساب‌ها',
+                    'url' => route('admin.accounting.accounts.index'),
+                    'routes' => ['admin.accounting.accounts.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'دریافتنی‌ها',
+            'icon' => 'ph-arrow-down-left',
+            'children' => [
+                [
+                    'title' => 'فاکتورهای مشتری',
+                    'url' => route('admin.accounting.customer-invoices.index'),
+                    'routes' => ['admin.accounting.customer-invoices.*'],
+                ],
+                [
+                    'title' => 'دریافت‌های نقدی',
+                    'url' => route('admin.accounting.customer-payments.index'),
+                    'routes' => ['admin.accounting.customer-payments.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'پرداختنی‌ها',
+            'icon' => 'ph-arrow-up-right',
+            'children' => [
+                [
+                    'title' => 'تامین‌کنندگان',
+                    'url' => route('admin.accounting.suppliers.index'),
+                    'routes' => ['admin.accounting.suppliers.*'],
+                ],
+                [
+                    'title' => 'سفارش‌های خرید',
+                    'url' => route('admin.accounting.purchase-orders.index'),
+                    'routes' => ['admin.accounting.purchase-orders.*'],
+                ],
+                [
+                    'title' => 'فاکتورهای خرید',
+                    'url' => route('admin.accounting.supplier-invoices.index'),
+                    'routes' => ['admin.accounting.supplier-invoices.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'خزانه‌داری',
+            'icon' => 'ph-vault',
+            'children' => [
+                [
+                    'title' => 'بانک‌ها',
+                    'url' => route('admin.accounting.banks.index'),
+                    'routes' => ['admin.accounting.banks.*'],
+                ],
+                [
+                    'title' => 'صندوق‌ها',
+                    'url' => route('admin.accounting.cashboxes.index'),
+                    'routes' => ['admin.accounting.cashboxes.*'],
+                ],
+                [
+                    'title' => 'کارت‌خوان‌ها',
+                    'url' => route('admin.accounting.pos-terminals.index'),
+                    'routes' => ['admin.accounting.pos-terminals.*'],
+                ],
+                [
+                    'title' => 'چک‌ها',
+                    'url' => route('admin.accounting.cheques.index'),
+                    'routes' => ['admin.accounting.cheques.*'],
+                ],
+                [
+                    'title' => 'روش‌های پرداخت',
+                    'url' => route('admin.accounting.payment-methods.index'),
+                    'routes' => ['admin.accounting.payment-methods.*'],
+                ],
+                [
+                    'title' => 'تطبیق پرداخت‌ها',
+                    'url' => route('admin.accounting.reconciliations.index'),
+                    'routes' => ['admin.accounting.reconciliations.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'هزینه‌ها',
+            'icon' => 'ph-receipt',
+            'children' => [
+                [
+                    'title' => 'لیست هزینه‌ها',
+                    'url' => route('admin.accounting.expenses.index'),
+                    'routes' => ['admin.accounting.expenses.*'],
+                ],
+                [
+                    'title' => 'دسته‌بندی هزینه‌ها',
+                    'url' => route('admin.accounting.expense-categories.index'),
+                    'routes' => ['admin.accounting.expense-categories.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'تنظیمات',
+            'icon' => 'ph-gear',
+            'children' => [
+                [
+                    'title' => 'ارزها',
+                    'url' => route('admin.accounting.currencies.index'),
+                    'routes' => ['admin.accounting.currencies.*'],
+                ],
+                [
+                    'title' => 'نرخ‌های مالیاتی',
+                    'url' => route('admin.accounting.tax-rates.index'),
+                    'routes' => ['admin.accounting.tax-rates.*'],
+                ],
+                [
+                    'title' => 'سال‌های مالی',
+                    'url' => route('admin.accounting.fiscal-years.index'),
+                    'routes' => ['admin.accounting.fiscal-years.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'گزارش‌ها',
+            'url' => route('admin.accounting.reports.index'),
+            'icon' => 'ph-file-text',
+            'routes' => ['admin.accounting.reports.*'],
+        ],
+    ];
+@endphp
+
+<x-cms::submenu-item
+    title="حسابداری"
+    icon="ph-chart-line"
+    :children="$accountingChildren"
+/>
