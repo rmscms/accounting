@@ -80,10 +80,10 @@ class TreasurySimulator extends BaseSimulator
     {
         $methods = [
             ['code' => 'CASH', 'name' => 'نقدی', 'type' => 'cash', 'requires_bank' => false, 'requires_pos' => false, 'sort_order' => 1],
-            ['code' => 'CARD_TO_CARD', 'name' => 'کارت به کارت', 'type' => 'bank_transfer', 'requires_bank' => true, 'requires_pos' => false, 'sort_order' => 2],
+            ['code' => 'CARD_TO_CARD', 'name' => 'کارت به کارت', 'type' => 'card_transfer', 'requires_bank' => true, 'requires_pos' => false, 'sort_order' => 2],
             ['code' => 'POS', 'name' => 'کارتخوان', 'type' => 'pos', 'requires_bank' => false, 'requires_pos' => true, 'sort_order' => 3],
             ['code' => 'CHEQUE', 'name' => 'چک', 'type' => 'cheque', 'requires_bank' => true, 'requires_pos' => false, 'sort_order' => 4],
-            ['code' => 'ONLINE', 'name' => 'پرداخت آنلاین', 'type' => 'online_gateway', 'requires_bank' => false, 'requires_pos' => false, 'requires_gateway' => true, 'sort_order' => 5],
+            ['code' => 'ONLINE', 'name' => 'پرداخت آنلاین', 'type' => 'online', 'requires_bank' => false, 'requires_pos' => false, 'requires_gateway' => true, 'sort_order' => 5],
         ];
 
         foreach ($methods as $method) {
