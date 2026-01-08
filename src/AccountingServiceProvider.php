@@ -46,6 +46,7 @@ class AccountingServiceProvider extends ServiceProvider
                 \RMS\Accounting\Console\ChequeReminderCommand::class,
                 \RMS\Accounting\Console\UpdateExchangeRatesCommand::class,
                 \RMS\Accounting\Console\AutoReconcileCommand::class,
+                \RMS\Accounting\Console\SimulateAccountingDataCommand::class,
             ]);
         }
     }
