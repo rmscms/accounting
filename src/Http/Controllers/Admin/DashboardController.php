@@ -23,129 +23,103 @@ class DashboardController extends AccountingAdminController
         CustomerInvoiceService $invoiceService,
         ExpenseService $expenseService
     ) {
+        parent::__construct();
         $this->ledgerService = $ledgerService;
         $this->invoiceService = $invoiceService;
         $this->expenseService = $expenseService;
     }
 
     /**
-     * نمایش داشبورد
+     * نمایش داشبورد حسابداری
      */
     public function index(Request $request)
     {
-        $storeId = $request->get('store_id');
-        $fiscalYear = FiscalYear::where('is_current', true)->first();
+        // دریافت دوره مالی فعال
+        $fiscalYear = FiscalYear::where('is_active', true)->first();
+        
+        if (!$fiscalYear) {
+            return response()->json([
+                'error' => trans('accounting::accounting.errors.no_active_fiscal_year')
+            ], 400);
+        }
 
         // آمار کلی
         $stats = [
-            // دارایی‌ها
-            'total_assets' => $this->getTotalByAccountType('asset', $storeId),
+            // موجودی حساب‌های اصلی
+            'cash_balance' => $this->ledgerService->getBalance(
+                Account::where('code', '1001')->value('id'),
+                $fiscalYear->start_date,
+                now()
+            ),
+            'bank_balance' => $this->ledgerService->getBalance(
+                Account::where('code', '1002')->value('id'),
+                $fiscalYear->start_date,
+                now()
+            ),
+            
+            // فاکتورهای فروش این ماه
+            'monthly_invoices_count' => $this->invoiceService->getMonthlyInvoicesCount(),
+            'monthly_revenue' => $this->invoiceService->getMonthlyRevenue(),
+            
+            // هزینه‌های این ماه
+            'monthly_expenses' => $this->expenseService->getMonthlyExpenses(),
+            
+            // مطالبات
+            'accounts_receivable' => $this->ledgerService->getAccountsReceivable(),
             
             // بدهی‌ها
-            'total_liabilities' => $this->getTotalByAccountType('liability', $storeId),
-            
-            // سرمایه
-            'total_equity' => $this->getTotalByAccountType('equity', $storeId),
-            
-            // درآمد
-            'total_revenue' => $this->getTotalByAccountType('revenue', $storeId),
-            
-            // هزینه
-            'total_expenses' => $this->getTotalByAccountType('expense', $storeId),
-            
-            // سود/زیان
-            'profit_loss' => 0, // محاسبه می‌شود
+            'accounts_payable' => $this->ledgerService->getAccountsPayable(),
         ];
 
-        // محاسبه سود/زیان
-        $stats['profit_loss'] = $stats['total_revenue'] - $stats['total_expenses'];
+        // نمودار فروش و هزینه 12 ماه اخیر
+        $chartData = [
+            'labels' => $this->getLast12MonthsLabels(),
+            'revenue' => $this->invoiceService->getLast12MonthsRevenue(),
+            'expenses' => $this->expenseService->getLast12MonthsExpenses(),
+        ];
 
-        // فاکتورهای معوق
-        $overdueInvoices = $this->invoiceService->getOverdueInvoices($storeId);
+        // آخرین فاکتورها
+        $recentInvoices = $this->invoiceService->getRecentInvoices(10);
 
-        // آخرین اسناد
-        $recentDocuments = \RMS\Accounting\Models\AccountingDocument::with('fiscalYear')
-            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
-            ->latest()
-            ->take(10)
-            ->get();
+        // آخرین هزینه‌ها
+        $recentExpenses = $this->expenseService->getRecentExpenses(10);
 
-        // نمودار درآمد/هزینه ماهانه
-        $monthlyChart = $this->getMonthlyRevenueExpenseChart($storeId);
-
-        return view('accounting::admin.dashboard', compact(
-            'stats',
-            'fiscalYear',
-            'overdueInvoices',
-            'recentDocuments',
-            'monthlyChart'
-        ));
+        return $this->view->usePackageNamespace('accounting')
+            ->setTheme('admin')
+            ->setTpl('dashboard.index')
+            ->withPlugins(['chart-js'])
+            ->withCss('vendor/accounting/admin/css/dashboard.css', true)
+            ->withJs('vendor/accounting/admin/js/dashboard.js', true)
+            ->with([
+                'stats' => $stats,
+                'chartData' => $chartData,
+                'recentInvoices' => $recentInvoices,
+                'recentExpenses' => $recentExpenses,
+                'fiscalYear' => $fiscalYear,
+            ]);
     }
 
     /**
-     * محاسبه مجموع بر اساس نوع حساب
+     * دریافت لیبل 12 ماه اخیر
      */
-    protected function getTotalByAccountType(string $type, ?int $storeId = null): float
+    private function getLast12MonthsLabels(): array
     {
-        $accounts = Account::where('account_type', $type)
-            ->where('active', true)
-            ->pluck('id');
-
-        $total = 0;
-        foreach ($accounts as $accountId) {
-            $balance = $this->ledgerService->getBalance(
-                accountId: $accountId,
-                storeId: $storeId
-            );
-            
-            // برای دارایی و هزینه: بدهکار - بستانکار
-            // برای بدهی، سرمایه و درآمد: بستانکار - بدهکار
-            if (in_array($type, ['asset', 'expense'])) {
-                $total += $balance['debit'] - $balance['credit'];
-            } else {
-                $total += $balance['credit'] - $balance['debit'];
-            }
-        }
-
-        return $total;
-    }
-
-    /**
-     * نمودار درآمد/هزینه ماهانه
-     */
-    protected function getMonthlyRevenueExpenseChart(?int $storeId = null): array
-    {
-        $months = [];
-        $revenue = [];
-        $expenses = [];
-
+        $labels = [];
         for ($i = 11; $i >= 0; $i--) {
             $date = now()->subMonths($i);
-            $months[] = $date->format('M Y');
-
-            // درآمد ماهانه
-            $monthRevenue = \RMS\Accounting\Models\CustomerInvoice::where('status', 'issued')
-                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
-                ->whereYear('invoice_date', $date->year)
-                ->whereMonth('invoice_date', $date->month)
-                ->sum('subtotal');
-
-            $revenue[] = $monthRevenue;
-
-            // هزینه ماهانه
-            $monthExpense = \RMS\Accounting\Models\Expense::where('status', 'approved')
-                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
-                ->whereYear('expense_date', $date->year)
-                ->whereMonth('expense_date', $date->month)
-                ->sum('total_amount');
-
-            $expenses[] = $monthExpense;
+            $labels[] = $date->format('Y/m');
         }
+        return $labels;
+    }
 
-        return [
-            'labels' => $months,
-            'revenue' => $revenue,
-            'expenses' => $expenses,
-        ];
+    // متدهای abstract که باید implement بشن
+    public function table(): string
+    {
+        return ''; // Dashboard doesn't need a table
+    }
+
+    public function modelName(): string
+    {
+        return ''; // Dashboard doesn't need a model
     }
 }
