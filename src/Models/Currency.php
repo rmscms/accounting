@@ -18,12 +18,16 @@ class Currency extends Model
         'code',
         'name',
         'symbol',
+        'decimals',
         'is_base',
+        'is_reference',
         'active',
     ];
 
     protected $casts = [
+        'decimals' => 'integer',
         'is_base' => 'boolean',
+        'is_reference' => 'boolean',
         'active' => 'boolean',
     ];
 
@@ -71,5 +75,28 @@ class Currency extends Model
     public static function getBaseCurrency(): ?self
     {
         return self::where('is_base', true)->first();
+    }
+
+    public static function resolveBaseCurrencyCode(string $fallback = 'IRR'): string
+    {
+        $base = self::query()
+            ->where('is_base', true)
+            ->where('active', true)
+            ->value('code');
+        if (is_string($base) && trim($base) !== '') {
+            return strtoupper(trim($base));
+        }
+
+        $baseAny = self::query()->where('is_base', true)->value('code');
+        if (is_string($baseAny) && trim($baseAny) !== '') {
+            return strtoupper(trim($baseAny));
+        }
+
+        $active = self::query()->active()->orderBy('code')->value('code');
+        if (is_string($active) && trim($active) !== '') {
+            return strtoupper(trim($active));
+        }
+
+        return strtoupper(trim($fallback));
     }
 }

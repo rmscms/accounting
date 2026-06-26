@@ -33,7 +33,10 @@ class CurrenciesApiController
      */
     public function getCurrentRate(string $code, Request $request): JsonResponse
     {
-        $toCurrency = $request->get('to_currency', config('accounting.default_currency', 'IRR'));
+        $toCurrency = $request->get(
+            'to_currency',
+            Currency::resolveBaseCurrencyCode('IRR')
+        );
         $date = $request->get('date', Carbon::now());
 
         try {

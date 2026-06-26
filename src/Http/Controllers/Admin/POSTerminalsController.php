@@ -1,10 +1,12 @@
 <?php
 
 namespace RMS\Accounting\Http\Controllers\Admin;
+use RMS\Accounting\Http\Controllers\Admin\Concerns\RendersAccountingStructuredResourceForm;
 
-use RMS\Accounting\Models\POSTerminal;
 use Illuminate\Http\Request;
-use RMS\Core\Controllers\Admin\AdminController;
+use Illuminate\Validation\Rule;
+use RMS\Accounting\Models\Bank;
+use RMS\Accounting\Models\POSTerminal;
 use RMS\Core\Data\Field;
 use RMS\Core\Contracts\List\HasList;
 use RMS\Core\Contracts\Form\HasForm;
@@ -17,6 +19,8 @@ class POSTerminalsController extends AccountingAdminController implements
     ShouldFilter,
     ChangeBoolField
 {
+    use RendersAccountingStructuredResourceForm;
+
     public function table(): string
     {
         return 'pos_terminals';
@@ -40,28 +44,27 @@ class POSTerminalsController extends AccountingAdminController implements
     public function getFieldsForm(): array
     {
         return [
-            Field::string('terminal_id', trans('accounting::accounting.fields.terminal_id'))
+            Field::string('terminal_id', trans('accounting::accounting.pos_terminal.terminal_id'))
                 ->required()
                 ->withHint(trans('accounting::accounting.hints.terminal_id')),
 
-            Field::string('name', trans('accounting::accounting.fields.pos_name'))
+            Field::string('name', trans('accounting::accounting.pos_terminal.name'))
                 ->required(),
 
-            Field::select('store_id', trans('accounting::accounting.fields.store'))
-                ->setOptions($this->getStoreOptions())
+            Field::string('serial_number', trans('accounting::accounting.pos_terminal.serial_number'))
                 ->required(),
 
-            Field::select('bank_account_id', trans('accounting::accounting.fields.bank_account'))
-                ->setOptions($this->getBankAccountOptions())
+            Field::select('bank_id', trans('accounting::accounting.pos_terminal.bank_id'))
+                ->setOptions($this->getBankOptions())
+                ->required(),
+
+            Field::string('merchant_id', trans('accounting::accounting.pos_terminal.merchant_id'))
                 ->optional(),
 
-            Field::string('merchant_id', trans('accounting::accounting.fields.merchant_id'))
+            Field::string('location', trans('accounting::accounting.pos_terminal.location'))
                 ->optional(),
 
-            Field::textarea('description', trans('accounting::accounting.fields.description'))
-                ->optional(),
-
-            Field::boolean('active', trans('accounting::accounting.fields.active'))
+            Field::boolean('active', trans('accounting::accounting.pos_terminal.is_active'))
                 ->withDefaultValue(true),
         ];
     }
@@ -80,15 +83,26 @@ class POSTerminalsController extends AccountingAdminController implements
 
     public function rules(): array
     {
-        $id = request()->route('pos_terminal');
+        $posTerminal = request()->route('pos_terminal');
+        $id = is_object($posTerminal) ? $posTerminal->getKey() : $posTerminal;
 
         return [
-            'terminal_id' => ['required', 'string', 'max:50', 'unique:pos_terminals,terminal_id,' . ($id ?? 'NULL')],
+            'terminal_id' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('pos_terminals', 'terminal_id')->ignore($id),
+            ],
             'name' => ['required', 'string', 'max:255'],
-            'store_id' => ['required', 'integer', 'exists:stores,id'],
-            'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
+            'serial_number' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('pos_terminals', 'serial_number')->ignore($id),
+            ],
+            'bank_id' => ['required', 'integer', 'exists:banks,id'],
             'merchant_id' => ['nullable', 'string', 'max:100'],
-            'description' => ['nullable', 'string'],
+            'location' => ['nullable', 'string', 'max:255'],
             'active' => ['boolean'],
         ];
     }
@@ -98,13 +112,15 @@ class POSTerminalsController extends AccountingAdminController implements
         return ['active'];
     }
 
-    protected function getStoreOptions(): array
+    /**
+     * @return array<int|string, string>
+     */
+    protected function getBankOptions(): array
     {
-        return [1 => 'فروشگاه اصلی'];
-    }
-
-    protected function getBankAccountOptions(): array
-    {
-        return \RMS\Accounting\Models\BankAccount::pluck('account_name', 'id')->toArray();
+        return Bank::query()
+            ->where('active', true)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
     }
 }

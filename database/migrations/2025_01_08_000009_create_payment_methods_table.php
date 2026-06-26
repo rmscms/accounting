@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('code', 50)->unique()->comment('CASH, POS, ONLINE, CHEQUE, WALLET');
             $table->string('name', 255);
-            $table->enum('type', ['cash', 'pos', 'online', 'cheque', 'card_transfer', 'wallet']);
+            $table->enum('type', ['cash', 'pos', 'online', 'cheque', 'card_transfer', 'bank_transfer', 'wallet']);
             $table->boolean('requires_bank')->default(false);
             $table->boolean('requires_pos')->default(false);
             $table->boolean('requires_gateway')->default(false);

@@ -1,0 +1,23 @@
+.customer-payment-customer-picker {
+    border-width: 1px;
+}
+
+.customer-payment-customer-picker__selected {
+    border: 1px solid rgba(var(--bs-success-rgb), 0.35);
+    background: rgba(var(--bs-success-rgb), 0.08);
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.customer-payment-customer-picker__results {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.customer-payment-customer-picker__results .list-group-item {
+    cursor: pointer;
+}

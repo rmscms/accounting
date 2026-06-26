@@ -14,6 +14,7 @@ use RMS\Accounting\Console\Simulators\SalesSimulator;
 use RMS\Accounting\Console\Simulators\PurchasesSimulator;
 use RMS\Accounting\Console\Simulators\ExpensesSimulator;
 use RMS\Accounting\Console\Simulators\PaymentsSimulator;
+use RMS\Accounting\Console\Simulators\SupplierPaymentsSimulator;
 use RMS\Accounting\Console\Simulators\ChequesSimulator;
 use RMS\Accounting\Console\Simulators\ReconciliationSimulator;
 
@@ -86,53 +87,60 @@ class SimulateAccountingDataCommand extends Command
     {
         $this->warn('⚠️  در حال پاک کردن داده‌های قبلی...');
 
-        DB::transaction(function () {
-            // Disable FK constraints temporarily
+        // Disable FK constraints temporarily (for SQLite)
+        if (DB::getDriverName() === 'sqlite') {
             DB::statement('PRAGMA foreign_keys = OFF');
-            
-            $tables = [
-                'payment_reconciliations',
-                'settlements',
-                'cheques',
-                'wallet_transactions',
-                'wallets',
-                'customer_payments',
-                'customer_invoices',
-                'customer_balances',
-                'supplier_payments',
-                'supplier_invoice_items',
-                'supplier_invoices',
-                'purchase_order_items',
-                'purchase_orders',
-                'suppliers',
-                'expense_items',
-                'expenses',
-                'expense_categories',
-                'cost_entries',
-                'tax_rates',
-                'financial_ledgers',
-                'accounting_documents',
-                'pos_terminals',
-                'payment_methods',
-                'cash_boxes',
-                'banks',
-                'currency_rates',
-                'currencies',
-                'fiscal_years',
-                'accounts',
-            ];
+        }
+        
+        $tables = [
+            'payment_reconciliations',
+            'settlements',
+            'cheques',
+            'wallet_transactions',
+            'wallets',
+            'customer_payments',
+            'customer_invoices',
+            'customer_balances',
+            'customers', // Add this
+            'supplier_payments',
+            'supplier_invoice_items',
+            'supplier_invoices',
+            'purchase_order_items',
+            'purchase_orders',
+            'suppliers',
+            'expense_items',
+            'expenses',
+            'expense_categories',
+            'cost_entries',
+            'tax_rates',
+            'financial_ledgers',
+            'accounting_documents',
+            'pos_terminals',
+            'payment_methods',
+            'cash_boxes',
+            'banks',
+            'currency_rates',
+            'currencies',
+            'fiscal_years',
+            'accounts',
+        ];
 
-            foreach ($tables as $table) {
-                try {
-                    DB::statement("DELETE FROM {$table}");
-                } catch (\Exception $e) {
-                    // Table might not exist yet
+        foreach ($tables as $table) {
+            try {
+                DB::table($table)->delete();
+                // Reset auto increment for SQLite
+                if (DB::getDriverName() === 'sqlite') {
+                    DB::statement("DELETE FROM sqlite_sequence WHERE name = '{$table}'");
                 }
+            } catch (\Exception $e) {
+                // Table might not exist yet
             }
-            
-            // Re-enable FK constraints
+        }
+        
+        // Re-enable FK constraints (for SQLite)
+        if (DB::getDriverName() === 'sqlite') {
             DB::statement('PRAGMA foreign_keys = ON');
-        });
+        }
 
         $this->info('  ✅ داده‌های قبلی پاک شدند');
         $this->newLine();
@@ -211,6 +219,7 @@ class SimulateAccountingDataCommand extends Command
         $totalPurchases = 0;
         $totalExpenses = 0;
         $totalPayments = 0;
+        $totalSupplierPayments = 0;
         $totalCheques = 0;
         $totalSalesAmount = 0;
         $totalPurchaseAmount = 0;
@@ -242,10 +251,15 @@ class SimulateAccountingDataCommand extends Command
             $expenseStats = $expensesSimulator->simulateMonth($month);
             $totalExpenses += $expenseStats['expenses'];
 
-            // Payments Simulator
+            // Payments Simulator (دریافت از مشتریان)
             $paymentsSimulator = new PaymentsSimulator($this, $this->year, $this->options);
             $paymentStats = $paymentsSimulator->simulateMonth($month);
             $totalPayments += $paymentStats['payments'];
+
+            // Supplier Payments Simulator (پرداخت به تامین‌کنندگان)
+            $supplierPaymentsSimulator = new SupplierPaymentsSimulator($this, $this->year, $this->options);
+            $supplierPaymentStats = $supplierPaymentsSimulator->simulateMonth($month);
+            $totalSupplierPayments += $supplierPaymentStats['payments'];
 
             // Cheques Simulator
             $chequesSimulator = new ChequesSimulator($this, $this->year, $this->options);
@@ -259,11 +273,18 @@ class SimulateAccountingDataCommand extends Command
             $this->newLine();
         }
 
+        // به‌روزرسانی موجودی مشتریان و تامین‌کنندگان
+        $this->updateBalances();
+
+        // به‌روزرسانی دفتر کل (financial_ledgers)
+        $this->updateFinancialLedger();
+
         // Store final stats
         $this->stats['total_invoices'] = $totalInvoices;
         $this->stats['total_purchases'] = $totalPurchases;
         $this->stats['total_expenses'] = $totalExpenses;
         $this->stats['total_payments'] = $totalPayments;
+        $this->stats['total_supplier_payments'] = $totalSupplierPayments;
         $this->stats['total_cheques'] = $totalCheques;
         $this->stats['total_sales_amount'] = $totalSalesAmount;
         $this->stats['total_purchase_amount'] = $totalPurchaseAmount;
@@ -275,17 +296,42 @@ class SimulateAccountingDataCommand extends Command
      */
     protected function createFiscalYear(): void
     {
-        DB::table('fiscal_years')->insert([
-            'year_code' => $this->year,
-            'start_date' => "{$this->year}-01-01",
-            'end_date' => "{$this->year}-12-29",
-            'status' => 'open',
-            'is_current' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $existingYear = DB::table('fiscal_years')
+            ->where('year_code', $this->year)
+            ->first();
 
-        $this->info('  ✅ سال مالی ' . $this->year . ' ایجاد شد');
+        if ($existingYear) {
+            // Update existing fiscal year
+            DB::table('fiscal_years')
+                ->where('year_code', $this->year)
+                ->update([
+                    'start_date' => "{$this->year}-01-01",
+                    'end_date' => "{$this->year}-12-29",
+                    'status' => 'open',
+                    'is_current' => true,
+                    'updated_at' => now(),
+                ]);
+            
+            $this->info('  ✅ سال مالی ' . $this->year . ' بروزرسانی شد');
+        } else {
+            // Create new fiscal year
+            DB::table('fiscal_years')->insert([
+                'year_code' => $this->year,
+                'start_date' => "{$this->year}-01-01",
+                'end_date' => "{$this->year}-12-29",
+                'status' => 'open',
+                'is_current' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->info('  ✅ سال مالی ' . $this->year . ' ایجاد شد');
+        }
+
+        // Set other fiscal years as non-current
+        DB::table('fiscal_years')
+            ->where('year_code', '!=', $this->year)
+            ->update(['is_current' => false]);
     }
 
     /**
@@ -293,19 +339,288 @@ class SimulateAccountingDataCommand extends Command
      */
     protected function createTaxRates(): void
     {
-        DB::table('tax_rates')->insert([
-            'code' => 'VAT',
-            'name' => 'مالیات بر ارزش افزوده',
-            'rate' => 9.0,
-            'tax_type' => 'vat',
-            'is_default' => true,
-            'active' => true,
-            'effective_from' => "{$this->year}-01-01",
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // چک کردن وجود نرخ مالیات
+        $exists = DB::table('tax_rates')->where('code', 'VAT')->exists();
+        
+        if (!$exists) {
+            DB::table('tax_rates')->insert([
+                'code' => 'VAT',
+                'name' => 'مالیات بر ارزش افزوده',
+                'rate' => 9.0,
+                'tax_type' => 'vat',
+                'is_default' => true,
+                'active' => true,
+                'effective_from' => "{$this->year}-01-01",
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->info('  ✅ نرخ مالیات: VAT 9%');
+        } else {
+            $this->info('  ✅ نرخ مالیات: VAT از قبل موجود');
+        }
+    }
 
-        $this->info('  ✅ نرخ مالیات: VAT 9%');
+    /**
+     * به‌روزرسانی موجودی مشتریان و تامین‌کنندگان
+     */
+    protected function updateBalances(): void
+    {
+        $this->info('📊 در حال به‌روزرسانی موجودی‌ها...');
+        
+        // به‌روزرسانی موجودی مشتریان
+        $customers = DB::table('customers')->pluck('id');
+        $updatedCustomers = 0;
+        
+        foreach ($customers as $customerId) {
+            // محاسبه کل فاکتورها
+            $totalInvoices = DB::table('customer_invoices')
+                ->where('customer_id', $customerId)
+                ->where('status', '!=', 'cancelled')
+                ->sum('total_amount');
+            
+            // محاسبه کل پرداخت‌ها
+            $totalPayments = DB::table('customer_payments')
+                ->where('customer_id', $customerId)
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            // محاسبه مانده
+            $balance = $totalInvoices - $totalPayments;
+            
+            if ($totalInvoices > 0 || $totalPayments > 0) {
+                // آخرین تاریخ فاکتور
+                $lastInvoiceAt = DB::table('customer_invoices')
+                    ->where('customer_id', $customerId)
+                    ->max('invoice_date');
+                
+                // آخرین تاریخ پرداخت
+                $lastPaymentAt = DB::table('customer_payments')
+                    ->where('customer_id', $customerId)
+                    ->max('payment_date');
+                
+                DB::table('customer_balances')->updateOrInsert(
+                    ['customer_id' => $customerId, 'store_id' => 1],
+                    [
+                        'balance_irr' => $balance,
+                        'total_invoices' => $totalInvoices,
+                        'total_payments' => $totalPayments,
+                        'last_invoice_at' => $lastInvoiceAt,
+                        'last_payment_at' => $lastPaymentAt,
+                        'last_transaction_at' => max($lastInvoiceAt, $lastPaymentAt),
+                        'updated_at' => now(),
+                    ]
+                );
+                $updatedCustomers++;
+            }
+        }
+        
+        $this->info("  ✅ موجودی {$updatedCustomers} مشتری به‌روز شد");
+        
+        // به‌روزرسانی موجودی بانک‌ها و صندوق‌ها
+        $this->updateTreasuryBalances();
+    }
+    
+    /**
+     * به‌روزرسانی موجودی خزانه‌داری (بانک، صندوق، POS)
+     */
+    protected function updateTreasuryBalances(): void
+    {
+        // به‌روزرسانی موجودی بانک‌ها
+        $banks = DB::table('banks')->get();
+        foreach ($banks as $bank) {
+            // محاسبه دریافت‌ها از این بانک
+            $deposits = DB::table('customer_payments')
+                ->where('bank_id', $bank->id)
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            // محاسبه پرداخت‌ها از این بانک
+            $withdrawals = DB::table('supplier_payments')
+                ->where('bank_id', $bank->id)
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            $balance = $deposits - $withdrawals;
+            
+            DB::table('banks')
+                ->where('id', $bank->id)
+                ->update([
+                    'balance' => $balance,
+                    'updated_at' => now(),
+                ]);
+        }
+        
+        // به‌روزرسانی موجودی صندوق‌ها
+        $cashBoxes = DB::table('cash_boxes')->get();
+        foreach ($cashBoxes as $cashBox) {
+            // محاسبه دریافت‌ها نقدی
+            $deposits = DB::table('customer_payments')
+                ->where('cash_box_id', $cashBox->id)
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            // محاسبه پرداخت‌های نقدی (از supplier_payments)
+            $withdrawals = DB::table('supplier_payments')
+                ->where('cash_box_id', $cashBox->id)
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            $balance = $deposits - $withdrawals;
+            
+            DB::table('cash_boxes')
+                ->where('id', $cashBox->id)
+                ->update([
+                    'balance' => $balance,
+                    'updated_at' => now(),
+                ]);
+        }
+        
+        $this->info("  ✅ موجودی {$banks->count()} بانک و {$cashBoxes->count()} صندوق به‌روز شد");
+    }
+
+    /**
+     * به‌روزرسانی دفتر کل (financial_ledgers)
+     */
+    protected function updateFinancialLedger(): void
+    {
+        $this->info('💼 در حال به‌روزرسانی دفتر کل...');
+        
+        $fiscalYear = DB::table('fiscal_years')->where('year_code', $this->year)->first();
+        
+        if (!$fiscalYear) {
+            $this->warn('  ⚠️  سال مالی یافت نشد!');
+            return;
+        }
+        
+        // 1. پیدا کردن حساب‌ها
+        $cashAccount = DB::table('accounts')->where('code', '1-1-1')->first(); // صندوق
+        $bankAccount = DB::table('accounts')->where('code', '1-1-2')->first(); // بانک
+        $receivableAccount = DB::table('accounts')->where('code', '1-2-1')->first(); // مطالبات
+        $payableAccount = DB::table('accounts')->where('code', '2-1-1')->first(); // بدهی‌ها
+        
+        // 2. محاسبه موجودی‌ها
+        $totalCash = DB::table('cash_boxes')->sum('balance');
+        $totalBank = DB::table('banks')->sum('balance');
+        $totalReceivable = DB::table('customer_balances')->where('balance_irr', '>', 0)->sum('balance_irr');
+        $totalPayable = DB::table('supplier_invoices')
+            ->where('payment_status', '!=', 'paid')
+            ->sum('balance_due');
+        
+        // 3. ایجاد سند حسابداری خلاصه (یا گرفتن سند موجود)
+        $existingDocument = DB::table('accounting_documents')
+            ->where('document_number', 'SIM-' . $this->year . '-OPENING')
+            ->first();
+        
+        if ($existingDocument) {
+            $documentId = $existingDocument->id;
+            $this->info('  ℹ️  سند حسابداری موجود استفاده شد');
+        } else {
+            $documentId = DB::table('accounting_documents')->insertGetId([
+                'document_number' => 'SIM-' . $this->year . '-OPENING',
+                'document_type' => 'OPENING',
+                'fiscal_year_id' => $fiscalYear->id,
+                'reference_type' => 'manual',
+                'description' => 'موجودی اولیه از شبیه‌سازی سال ' . $this->year,
+                'total_debit' => $totalCash + $totalBank + $totalReceivable,
+                'total_credit' => $totalPayable,
+                'status' => 'posted',
+                'posted_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        
+        // 4. ثبت در دفتر کل
+        $entries = [];
+        
+        // صندوق
+        if ($cashAccount && $totalCash != 0) {
+            $entries[] = [
+                'event_type' => 'ADJUSTMENT',
+                'event_source' => 'system',
+                'store_id' => 0,
+                'account_id' => $cashAccount->id,
+                'currency_code' => 'IRT',
+                'debit_amount' => $totalCash > 0 ? $totalCash : 0,
+                'credit_amount' => $totalCash < 0 ? abs($totalCash) : 0,
+                'fx_rate_to_base' => 1,
+                'amount_base' => $totalCash,
+                'accounting_document_id' => $documentId,
+                'description' => 'موجودی اولیه صندوق',
+                'created_at' => now(),
+            ];
+        }
+        
+        // بانک
+        if ($bankAccount && $totalBank != 0) {
+            $entries[] = [
+                'event_type' => 'ADJUSTMENT',
+                'event_source' => 'system',
+                'store_id' => 0,
+                'account_id' => $bankAccount->id,
+                'currency_code' => 'IRT',
+                'debit_amount' => $totalBank > 0 ? $totalBank : 0,
+                'credit_amount' => $totalBank < 0 ? abs($totalBank) : 0,
+                'fx_rate_to_base' => 1,
+                'amount_base' => $totalBank,
+                'accounting_document_id' => $documentId,
+                'description' => 'موجودی اولیه بانک',
+                'created_at' => now(),
+            ];
+        }
+        
+        // مطالبات (بدهکار)
+        if ($receivableAccount && $totalReceivable > 0) {
+            $entries[] = [
+                'event_type' => 'ADJUSTMENT',
+                'event_source' => 'system',
+                'store_id' => 0,
+                'account_id' => $receivableAccount->id,
+                'currency_code' => 'IRT',
+                'debit_amount' => $totalReceivable,
+                'credit_amount' => 0,
+                'fx_rate_to_base' => 1,
+                'amount_base' => $totalReceivable,
+                'accounting_document_id' => $documentId,
+                'description' => 'مطالبات از مشتریان',
+                'created_at' => now(),
+            ];
+        }
+        
+        // بدهی‌ها (بستانکار)
+        if ($payableAccount && $totalPayable > 0) {
+            $entries[] = [
+                'event_type' => 'ADJUSTMENT',
+                'event_source' => 'system',
+                'store_id' => 0,
+                'account_id' => $payableAccount->id,
+                'currency_code' => 'IRT',
+                'debit_amount' => 0,
+                'credit_amount' => $totalPayable,
+                'fx_rate_to_base' => 1,
+                'amount_base' => -$totalPayable,
+                'accounting_document_id' => $documentId,
+                'description' => 'بدهی به تامین‌کنندگان',
+                'created_at' => now(),
+            ];
+        }
+        
+        // Bulk insert
+        if (!empty($entries)) {
+            // حذف رکوردهای قبلی اگر موجود باشد
+            DB::table('financial_ledgers')
+                ->where('accounting_document_id', $documentId)
+                ->delete();
+            
+            DB::table('financial_ledgers')->insert($entries);
+        }
+        
+        $totalCashB = number_format($totalCash / 1000000000, 2);
+        $totalBankB = number_format($totalBank / 1000000000, 2);
+        $totalReceivableB = number_format($totalReceivable / 1000000000, 2);
+        $totalPayableB = number_format($totalPayable / 1000000000, 2);
+        
+        $this->info("  ✅ دفتر کل: {$totalCashB}B صندوق + {$totalBankB}B بانک + {$totalReceivableB}B مطالبات - {$totalPayableB}B بدهی");
     }
 
     /**
@@ -313,6 +628,18 @@ class SimulateAccountingDataCommand extends Command
      */
     protected function createExpenseCategories(): void
     {
+        // چک کردن دسته‌بندی‌های موجود
+        $existingCount = DB::table('expense_categories')->count();
+        if ($existingCount >= 15) {
+            $this->info('  ✅ دسته‌بندی هزینه‌ها: از قبل موجود');
+            return;
+        }
+        
+        // Get operational expenses account ID
+        $operationalExpensesAccount = DB::table('accounts')
+            ->where('code', '5-2')
+            ->first();
+            
         $categories = [
             ['code' => 'SALARY', 'name' => 'حقوق و دستمزد'],
             ['code' => 'RENT', 'name' => 'اجاره'],
@@ -332,13 +659,18 @@ class SimulateAccountingDataCommand extends Command
         ];
 
         foreach ($categories as $category) {
-            DB::table('expense_categories')->insert([
-                'code' => $category['code'],
-                'name' => $category['name'],
-                'active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // چک کنیم این دسته‌بندی وجود داره یا نه
+            $exists = DB::table('expense_categories')->where('code', $category['code'])->exists();
+            if (!$exists) {
+                DB::table('expense_categories')->insert([
+                    'code' => $category['code'],
+                    'name' => $category['name'],
+                    'account_id' => $operationalExpensesAccount->id,
+                    'active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
         $this->info('  ✅ دسته‌بندی هزینه‌ها: 15 دسته');

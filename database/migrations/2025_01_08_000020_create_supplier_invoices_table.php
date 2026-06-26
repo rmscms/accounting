@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('IRR');
             $table->foreign('currency_code')->references('code')->on('currencies');
             $table->decimal('fx_rate_at_invoice', 12, 6)->default(1);
-            $table->decimal('amount_irr_at_invoice', 20, 4);
+            $table->decimal('amount_base_at_invoice', 20, 4);
             $table->enum('payment_status', ['unpaid', 'partially_paid', 'paid'])->default('unpaid');
             $table->decimal('paid_amount', 20, 4)->default(0);
             $table->decimal('balance_due', 20, 4);

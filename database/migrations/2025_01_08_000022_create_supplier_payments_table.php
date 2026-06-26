@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('IRR');
             $table->foreign('currency_code')->references('code')->on('currencies');
             $table->decimal('fx_rate_at_payment', 12, 6)->default(1);
-            $table->decimal('amount_irr_at_payment', 20, 4);
+            $table->decimal('amount_base_at_payment', 20, 4);
             $table->decimal('fx_difference_irr', 20, 4)->default(0)->comment('اختلاف تسعیر ارز');
             $table->date('payment_date');
             $table->foreignId('bank_id')->nullable()->constrained('banks');

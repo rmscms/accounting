@@ -36,7 +36,7 @@ class SettlementService
             $settlement->final_balance = $this->calculateFinalBalance($data);
             $settlement->status = $data['status'] ?? 'pending';
             $settlement->notes = $data['notes'] ?? null;
-            $settlement->created_by = auth()->id();
+            $settlement->created_by = \RMS\Accounting\Support\AuditActor::actorId();
             $settlement->save();
 
             DB::commit();
@@ -65,7 +65,7 @@ class SettlementService
     {
         $settlement->status = 'approved';
         $settlement->approved_at = Carbon::now();
-        $settlement->approved_by = auth()->id();
+        $settlement->approved_by = \RMS\Accounting\Support\AuditActor::actorId();
         $settlement->save();
 
         return $settlement;

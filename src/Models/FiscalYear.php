@@ -16,16 +16,27 @@ class FiscalYear extends Model
         'end_date',
         'status',
         'is_current',
+        'is_closed',
         'closed_at',
         'closed_by_user_id',
+        'closing_document_id',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'is_current' => 'boolean',
+        'is_closed' => 'boolean',
         'closed_at' => 'datetime',
     ];
+
+    /**
+     * عنوان نمایشی (مثلاً در توضیح اسناد) — هم‌نام با فیلدهای قدیمی که name نداشتند.
+     */
+    public function getNameAttribute(): string
+    {
+        return (string) $this->year_code;
+    }
 
     // Status
     const STATUS_OPEN = 'open';

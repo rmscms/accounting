@@ -22,8 +22,8 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('IRR')->comment('کد ارز');
             $table->decimal('debit_amount', 20, 4)->default(0)->comment('مبلغ بدهکار');
             $table->decimal('credit_amount', 20, 4)->default(0)->comment('مبلغ بستانکار');
-            $table->decimal('fx_rate_to_irr', 12, 6)->default(1)->comment('نرخ تبدیل به ریال');
-            $table->decimal('amount_irr', 20, 4)->comment('مبلغ ریالی برای گزارش');
+            $table->decimal('fx_rate_to_base', 12, 6)->default(1)->comment('نرخ ارز تراکنش به ارز پایهٔ سیستم');
+            $table->decimal('amount_base', 20, 4)->comment('خالص بدهکار منهای بستانکار به ارز پایه');
             $table->foreignId('accounting_document_id')->constrained('accounting_documents')->onDelete('restrict');
             $table->text('description')->nullable();
             $table->timestamp('created_at')->useCurrent()->comment('فقط INSERT - هیچ UPDATE نداریم');

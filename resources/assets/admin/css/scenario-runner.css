@@ -1,0 +1,69 @@
+.scenario-runner-kpi {
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(248, 249, 250, 0.65);
+}
+
+.scenario-runner-table td,
+.scenario-runner-table th {
+    vertical-align: middle;
+}
+
+.scenario-runner-table .js-scenario-select-row {
+    cursor: pointer;
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.scenario-runner-table .js-scenario-select-row:hover {
+    background-color: rgba(13, 110, 253, 0.06);
+}
+
+.scenario-runner-table .js-scenario-select-row.is-active {
+    background-color: rgba(13, 110, 253, 0.1);
+    box-shadow: inset 3px 0 0 rgba(13, 110, 253, 0.9);
+}
+
+.scenario-profile-block {
+    background: #f8f9fb;
+    border-color: rgba(13, 110, 253, 0.15) !important;
+}
+
+.scenario-profile-block .form-label {
+    font-size: 0.82rem;
+    color: #495057;
+}
+
+.scenario-field-error.has-error .card {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.12rem rgba(220, 53, 69, 0.15);
+}
+
+.scenario-runner-selected-status {
+    border: 1px dashed rgba(13, 110, 253, 0.35);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(13, 110, 253, 0.04);
+}
+
+.scenario-runner-errors-cell {
+    background: #fcfcff;
+}
+
+.scenario-runner-errors-item:last-child {
+    margin-bottom: 0 !important;
+}
+
+.scenario-runner-form-focus {
+    animation: scenarioRunnerFocusPulse 1.2s ease;
+}
+
+@keyframes scenarioRunnerFocusPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.38);
+    }
+    100% {
+        box-shadow: 0 0 0 0.95rem rgba(13, 110, 253, 0);
+    }
+}
+

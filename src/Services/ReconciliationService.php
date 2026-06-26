@@ -60,7 +60,7 @@ class ReconciliationService
             $reconciliation->update([
                 'is_reconciled' => true,
                 'status' => PaymentReconciliation::STATUS_RESOLVED,
-                'reconciled_by_user_id' => auth()->id(),
+                'reconciled_by_user_id' => \RMS\Accounting\Support\AuditActor::userId(),
                 'reconciled_at' => now(),
                 'discrepancy_notes' => $notes ?? $reconciliation->discrepancy_notes,
             ]);

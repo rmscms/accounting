@@ -1,0 +1,97 @@
+/**
+ * کارت‌های خلاصهٔ خرید در فرم ساختاریافتهٔ حسابداری (الگو از purchase-summary-card اپ).
+ */
+.acct-purchase-summary-wrap .acct-purchase-summary-card {
+    --acct-summary-accent: 37, 99, 235;
+    --acct-summary-bg-soft: rgba(var(--acct-summary-accent), 0.08);
+    --acct-summary-border: rgba(var(--acct-summary-accent), 0.24);
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--acct-summary-border);
+    padding: 0.95rem 1rem 1rem;
+    min-height: 102px;
+    background: linear-gradient(
+        160deg,
+        var(--acct-summary-bg-soft) 0%,
+        rgba(var(--acct-summary-accent), 0.04) 52%,
+        rgba(255, 255, 255, 0.96) 100%
+    );
+    box-shadow:
+        0 10px 24px rgba(15, 23, 42, 0.08),
+        0 2px 8px rgba(15, 23, 42, 0.06);
+    color: var(--bs-body-color, #1f2937);
+    transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+}
+
+.acct-purchase-summary-wrap .acct-purchase-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(var(--acct-summary-accent), 0.85), rgba(var(--acct-summary-accent), 0.2));
+}
+
+.acct-purchase-summary-wrap .acct-purchase-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 14px 28px rgba(15, 23, 42, 0.1),
+        0 4px 10px rgba(15, 23, 42, 0.07);
+}
+
+.acct-purchase-summary-label {
+    font-size: 0.79rem;
+    color: rgba(71, 85, 105, 0.92);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.42rem;
+}
+
+.acct-purchase-summary-value {
+    font-weight: 700;
+    font-size: 1.16rem;
+    line-height: 1.32;
+    color: var(--bs-emphasis-color, #0f172a);
+}
+
+.acct-purchase-summary-card--gross {
+    --acct-summary-accent: 37, 99, 235;
+}
+
+.acct-purchase-summary-card--discount {
+    --acct-summary-accent: 220, 38, 38;
+}
+
+.acct-purchase-summary-card--tax {
+    --acct-summary-accent: 124, 58, 237;
+}
+
+.acct-purchase-summary-card--total {
+    --acct-summary-accent: 5, 150, 105;
+}
+
+.acct-purchase-summary-card--balance {
+    --acct-summary-accent: 14, 165, 233;
+}
+
+[data-bs-theme="dark"] .acct-purchase-summary-wrap .acct-purchase-summary-card,
+[data-color-theme="dark"] .acct-purchase-summary-wrap .acct-purchase-summary-card {
+    background: linear-gradient(
+        160deg,
+        rgba(var(--acct-summary-accent), 0.16) 0%,
+        rgba(var(--acct-summary-accent), 0.08) 50%,
+        rgba(15, 23, 42, 0.88) 100%
+    );
+    border-color: rgba(var(--acct-summary-accent), 0.34);
+}
+
+[data-bs-theme="dark"] .acct-purchase-summary-label,
+[data-color-theme="dark"] .acct-purchase-summary-label {
+    color: rgba(226, 232, 240, 0.86);
+}
+
+[data-bs-theme="dark"] .acct-purchase-summary-value,
+[data-color-theme="dark"] .acct-purchase-summary-value {
+    color: rgba(248, 250, 252, 0.98);
+}

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('IRR');
             $table->foreign('currency_code')->references('code')->on('currencies');
             $table->decimal('fx_rate', 12, 6)->default(1);
-            $table->decimal('amount_irr', 20, 4);
+            $table->decimal('amount_base', 20, 4);
             $table->date('payment_date');
             $table->foreignId('bank_id')->nullable()->constrained('banks');
             $table->foreignId('cash_box_id')->nullable()->constrained('cash_boxes');

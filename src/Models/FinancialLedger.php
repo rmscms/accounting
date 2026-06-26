@@ -21,8 +21,8 @@ class FinancialLedger extends Model
         'currency_code',
         'debit_amount',
         'credit_amount',
-        'fx_rate_to_irr',
-        'amount_irr',
+        'fx_rate_to_base',
+        'amount_base',
         'accounting_document_id',
         'description',
     ];
@@ -32,8 +32,8 @@ class FinancialLedger extends Model
         'source_reference_id' => 'integer',
         'debit_amount' => 'decimal:4',
         'credit_amount' => 'decimal:4',
-        'fx_rate_to_irr' => 'decimal:6',
-        'amount_irr' => 'decimal:4',
+        'fx_rate_to_base' => 'decimal:6',
+        'amount_base' => 'decimal:4',
         'created_at' => 'datetime',
     ];
 

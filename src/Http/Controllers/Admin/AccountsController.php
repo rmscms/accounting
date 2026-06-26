@@ -3,6 +3,7 @@
 namespace RMS\Accounting\Http\Controllers\Admin;
 
 use RMS\Accounting\Models\Account;
+use RMS\Accounting\Models\Currency;
 use Illuminate\Http\Request;
 use RMS\Core\Data\Field;
 use RMS\Core\Contracts\List\HasList;
@@ -24,7 +25,7 @@ class AccountsController extends AccountingAdminController implements HasList, H
 
     public function baseRoute(): string
     {
-        return 'admin.accounting.accounts';
+        return 'accounting.accounts';
     }
 
     public function routeParameter(): string
@@ -34,11 +35,20 @@ class AccountsController extends AccountingAdminController implements HasList, H
 
     public function getFieldsForm(): array
     {
+        // دریافت لیست حساب‌های والد برای select
+        $parentAccounts = Account::where('active', true)
+            ->orderBy('code')
+            ->get()
+            ->mapWithKeys(function ($account) {
+                return [$account->id => $account->code . ' - ' . $account->name];
+            })
+            ->toArray();
+
         return [
             Field::string('code', trans('accounting::accounting.account.code'))->required(),
             Field::string('name', trans('accounting::accounting.account.name'))->required(),
             Field::select('account_type', trans('accounting::accounting.account.account_type'))
-                ->options([
+                ->setOptions([
                     'asset' => trans('accounting::accounting.account_types.asset'),
                     'liability' => trans('accounting::accounting.account_types.liability'),
                     'equity' => trans('accounting::accounting.account_types.equity'),
@@ -47,11 +57,13 @@ class AccountsController extends AccountingAdminController implements HasList, H
                 ])
                 ->required(),
             Field::select('parent_id', trans('accounting::accounting.account.parent'))
-                ->optionsFrom(Account::class, 'name', 'id')
+                ->setOptions(['' => trans('accounting::accounting.common.none')] + $parentAccounts)
                 ->optional(),
             Field::number('level', trans('accounting::accounting.account.level'))->withDefaultValue(1)->required(),
             Field::boolean('active', trans('accounting::accounting.account.active'))->withDefaultValue(true),
-            Field::string('currency_code', trans('accounting::accounting.account.currency_code'))->optional(),
+            Field::string('currency_code', trans('accounting::accounting.account.currency_code'))
+                ->withDefaultValue(Currency::resolveBaseCurrencyCode('IRR'))
+                ->required(),
             Field::textarea('description', trans('accounting::accounting.account.description'))->optional(),
         ];
     }
@@ -64,7 +76,7 @@ class AccountsController extends AccountingAdminController implements HasList, H
             Field::make('name')->withTitle(trans('accounting::accounting.account.name'))->searchable()->sortable(),
             Field::make('account_type')->withTitle(trans('accounting::accounting.account.account_type'))->sortable()->width('120px'),
             Field::make('level')->withTitle(trans('accounting::accounting.account.level'))->sortable()->width('80px'),
-            Field::make('active')->withTitle(trans('accounting::accounting.account.active'))->boolean()->sortable()->width('100px'),
+            Field::boolean('active')->withTitle(trans('accounting::accounting.account.active'))->sortable()->width('100px'),
         ];
     }
 
@@ -72,7 +84,7 @@ class AccountsController extends AccountingAdminController implements HasList, H
     {
         return [
             Field::select('account_type', trans('accounting::accounting.account.account_type'))
-                ->options([
+                ->setOptions([
                     '' => trans('accounting::accounting.common.all'),
                     'asset' => trans('accounting::accounting.account_types.asset'),
                     'liability' => trans('accounting::accounting.account_types.liability'),
@@ -81,7 +93,7 @@ class AccountsController extends AccountingAdminController implements HasList, H
                     'expense' => trans('accounting::accounting.account_types.expense'),
                 ]),
             Field::select('active', trans('accounting::accounting.account.active'))
-                ->options([
+                ->setOptions([
                     '' => trans('accounting::accounting.common.all'),
                     '1' => trans('accounting::accounting.common.active'),
                     '0' => trans('accounting::accounting.common.inactive'),

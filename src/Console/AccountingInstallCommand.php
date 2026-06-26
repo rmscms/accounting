@@ -6,106 +6,129 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use RMS\Accounting\Database\Seeders\AccountingDatabaseSeeder;
+use RMS\Accounting\Services\AccountingInstallService;
 
 /**
- * دستور نصب پکیج Accounting
+ * دستور نصب پکیج Accounting — پیش‌فرض: همان منطق ویزارد (سید + نگاشت).
+ * گزینهٔ --bootstrap: publish، migrate و منوی قدیمی (فقط در صورت نیاز صریح).
  */
 class AccountingInstallCommand extends Command
 {
-    protected $signature = 'accounting:install {--seed : اجرای Seeders}';
+    protected $signature = 'accounting:install {--bootstrap : Publish configs/migrations/views/lang, migrate, seed AccountingDatabaseSeeder, patch sidebar}';
 
-    protected $description = 'نصب پکیج Accounting و ایجاد ساختار اولیه';
+    protected $description = 'Run accounting initial setup (wizard logic). Use --bootstrap for full vendor publish + migrate + legacy sidebar.';
 
-    public function handle()
+    public function handle(AccountingInstallService $installService): int
     {
-        $this->info('🚀 شروع نصب پکیج Accounting...');
+        if ($this->option('bootstrap')) {
+            return $this->runBootstrap();
+        }
 
-        // 1. Publish configs
-        $this->info('📝 انتشار فایل‌های تنظیمات...');
+        $this->info('Running accounting install wizard (seed + map settings)...');
+        $result = $installService->runAll();
+
+        foreach ($result['steps'] as $row) {
+            $status = $row['status'] ?? '';
+            $line = sprintf(
+                '[%s] %s (%s): %s',
+                $status,
+                $row['label'] ?? ($row['key'] ?? ''),
+                $row['type'] ?? '',
+                $row['detail'] ?? ''
+            );
+            if ($status === 'error') {
+                $this->error($line);
+            } elseif ($status === 'skipped') {
+                $this->comment($line);
+            } else {
+                $this->line($line);
+            }
+        }
+
+        if ($result['success']) {
+            $this->info('Accounting install completed successfully.');
+
+            return self::SUCCESS;
+        }
+
+        $this->warn('Accounting install finished with errors or incomplete mapping.');
+
+        return self::FAILURE;
+    }
+
+    protected function runBootstrap(): int
+    {
+        $this->info('Bootstrap mode: publishing, migrating, seeding (legacy behaviour)...');
+
+        $this->info('Publishing config...');
         Artisan::call('vendor:publish', [
             '--tag' => 'accounting-config',
             '--force' => true,
         ]);
 
-        // 2. Publish migrations
-        $this->info('📝 انتشار Migrations...');
+        $this->info('Publishing migrations...');
         Artisan::call('vendor:publish', [
             '--tag' => 'accounting-migrations',
             '--force' => true,
         ]);
 
-        // 3. Publish views
-        $this->info('📝 انتشار Views...');
+        $this->info('Publishing views...');
         Artisan::call('vendor:publish', [
             '--tag' => 'accounting-views',
             '--force' => true,
         ]);
 
-        // 4. Publish translations
-        $this->info('📝 انتشار ترجمه‌ها...');
+        $this->info('Publishing translations...');
         Artisan::call('vendor:publish', [
             '--tag' => 'accounting-lang',
             '--force' => true,
         ]);
 
-        // 5. Run migrations
-        $this->info('📦 اجرای Migrations...');
+        $this->info('Running migrations...');
         Artisan::call('migrate');
 
-        // 6. Update admin sidebar
-        $this->info('📋 به‌روزرسانی منوی مدیریت...');
+        $this->info('Running AccountingDatabaseSeeder...');
+        Artisan::call('db:seed', ['--class' => AccountingDatabaseSeeder::class]);
+
+        $this->info('Updating admin sidebar (if stub exists)...');
         $this->updateSidebar();
 
-        // 7. Run seeders if requested
-        if ($this->option('seed')) {
-            $this->info('🌱 اجرای Seeders...');
-            Artisan::call('db:seed', ['--class' => AccountingDatabaseSeeder::class]);
-        }
+        $this->info('Bootstrap finished. For chart/settings alignment run: php artisan accounting:install (without --bootstrap)');
 
-        $this->info('✅ پکیج Accounting با موفقیت نصب شد!');
-        $this->line('');
-        $this->line('📋 مراحل بعدی:');
-        $this->line('1. فایل config/accounting.php را بررسی و تنظیم کنید');
-        $this->line('2. سال مالی فعلی را تعیین کنید');
-        $this->line('3. حساب‌های اضافی مورد نیاز را ایجاد کنید');
-        $this->line('4. از دستور accounting:install --seed برای ایجاد داده‌های اولیه استفاده کنید');
-
-        return 0;
+        return self::SUCCESS;
     }
 
     /**
      * به‌روزرسانی sidebar ادمین
      */
-    protected function updateSidebar()
+    protected function updateSidebar(): void
     {
         $sidebarPath = resource_path('views/vendor/cms/admin/layout/sidebar.blade.php');
 
-        if (!File::exists($sidebarPath)) {
-            $this->error('❌ فایل sidebar یافت نشد! ابتدا views پکیج CMS را publish کنید.');
+        if (! File::exists($sidebarPath)) {
+            $this->error('Sidebar file not found. Publish CMS views first.');
+
             return;
         }
 
         $content = File::get($sidebarPath);
 
-        // بررسی تکراری نبودن
         if (strpos($content, '{{-- Accounting Management --}}') !== false) {
-            $this->info('ℹ️ منوی حسابداری قبلاً در sidebar وجود دارد.');
+            $this->comment('Accounting menu already present in sidebar.');
+
             return;
         }
 
-        // بارگذاری از stub
-        $stubPath = __DIR__ . '/../../resources/stubs/accounting-menu.blade.stub';
-        if (!File::exists($stubPath)) {
-            $this->error('❌ فایل stub منوی حسابداری یافت نشد!');
+        $stubPath = __DIR__.'/../../resources/stubs/accounting-menu.blade.stub';
+        if (! File::exists($stubPath)) {
+            $this->error('Accounting menu stub not found.');
+
             return;
         }
 
-        $accountingMenu = "\n" . File::get($stubPath) . "\n";
-
-        // درج قبل از اولین </ul>
-        $content = preg_replace('/(\\s*<\\/ul>)/', $accountingMenu . '$1', $content, 1);
+        $accountingMenu = "\n".File::get($stubPath)."\n";
+        $content = preg_replace('/(\\s*<\\/ul>)/', $accountingMenu.'$1', $content, 1);
         File::put($sidebarPath, $content);
-        
-        $this->info('✅ منوی حسابداری به sidebar اضافه شد.');
+        $this->info('Accounting menu appended to sidebar.');
     }
 }

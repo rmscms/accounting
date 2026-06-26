@@ -82,6 +82,15 @@ composer require rmscms/accounting
 php artisan vendor:publish --tag=accounting-config
 ```
 
+برای به‌روزرسانی قالب‌ها و فایل‌های استاتیک پکیج (مثلاً فرم دسته هزینه، داشبورد، **سطرهای سند دستی** `manual-journal-lines.js` / `.css`، JS/CSS دیگر):
+
+```bash
+php artisan vendor:publish --tag=accounting-views --force
+php artisan vendor:publish --tag=accounting-assets --force
+```
+
+پس از `accounting-assets` فایل‌ها در `public/vendor/accounting/` قرار می‌گیرند؛ کنترلرها با `withJs` / `withCss` همان مسیر نسبی را لود می‌کنند.
+
 ### 3. اجرای Migrations
 
 ```bash
@@ -103,6 +112,15 @@ php artisan db:seed --class=RMS\\Accounting\\Database\\Seeders\\FiscalYearsSeede
 ```bash
 php artisan accounting:install
 ```
+
+## تفاوت «سند دفترکل» و «پیوست فایلی»
+
+| مفهوم | مدل / جدول | توضیح |
+|--------|------------|--------|
+| سند حسابداری (دفترکل) | `AccountingDocument` | ثبت دوطرفه، وضعیت draft/posted؛ **فایل اسکن نیست**. |
+| پیوست خصوصی (رسید، PDF، تصویر) | `AccountingAttachment` + جدول `accounting_attachments` | ذخیره روی دیسک غیرعمومی؛ دانلود فقط از مسیر ادمین احرازشده (`admin/accounting/attachments/{uuid}/download`). |
+
+تنظیمات اندازه و نوع فایل در `config/accounting.php` بخش `attachments` (و متغیرهای محیطی `ACCOUNTING_ATTACHMENTS_*`). فرم هزینه از این سرویس به‌عنوان اولین مصرف‌کننده استفاده می‌کند؛ آپلود AJAX اختیاری از route نام‌گذاری‌شده `admin.accounting.attachments.store` ممکن است.
 
 ## پیکربندی
 
@@ -278,6 +296,26 @@ $cogsService->recordCOGS([
 ### VIEWs:
 - `customer_balances_view` - محاسبه Real-Time مانده از Ledger
 - `supplier_balances_view` - محاسبه Real-Time مانده تامین‌کننده‌ها
+
+### Danger zone — `accounting:wipe`
+
+دستور `php artisan accounting:wipe` برای **حذف اسناد، دفتر مالی (`financial_ledgers`)، دفتر دستی، سال‌های مالی** و در حالت تهاجمی **حذف گستردهٔ تراکنش‌های عملیاتی** است. پیش‌فرض فقط **dry-run** است (تا زمانی که `--execute` ندهید، دیتابیس عوض نمی‌شود).
+
+- `--mode=documents` (پیش‌فرض): حذف هستهٔ GL؛ روی رکوردهای عملیاتی که نگه داشته می‌شوند فقط `document_id` / `accounting_document_id` خالی می‌شود. بعد از آن، رکوردهای تجاری ممکن است **بدون سند معتبر** بمانند؛ باید دوباره از مسیر عادی سیستم پست شوند یا دستی اصلاح شوند.
+- `--mode=accounting-reset`: علاوه بر موارد بالا، حذف جداول عملیاتی (فاکتور، پرداخت، PO، …) با **حفظ** `accounts`، `banks`، `cash_boxes`، `pos_terminals`. برای اجرای واقعی باید `--execute` به‌همراه **`--confirm=RESET`** یا **`--force`** بدهید.
+
+نمونهٔ فقط گزارش:
+
+```bash
+php artisan accounting:wipe --mode=documents
+```
+
+اجرای واقعی (غیرقابل بازگشت):
+
+```bash
+php artisan accounting:wipe --mode=documents --execute
+php artisan accounting:wipe --mode=accounting-reset --execute --confirm=RESET
+```
 
 ## Commands
 

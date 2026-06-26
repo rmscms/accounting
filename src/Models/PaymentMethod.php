@@ -36,6 +36,7 @@ class PaymentMethod extends Model
     const TYPE_ONLINE = 'online';
     const TYPE_CHEQUE = 'cheque';
     const TYPE_CARD_TRANSFER = 'card_transfer';
+    const TYPE_BANK_TRANSFER = 'bank_transfer';
     const TYPE_WALLET = 'wallet';
 
     /**

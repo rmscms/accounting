@@ -20,6 +20,14 @@
         "psr-4": {
             "RMS\\Accounting\\": "src/",
             "RMS\\Accounting\\Database\\Seeders\\": "database/seeders/"
+        },
+        "files": [
+            "src/Helpers/tax_helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "RMS\\Accounting\\Tests\\": "tests/"
         }
     },
     "extra": {

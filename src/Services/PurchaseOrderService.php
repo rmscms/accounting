@@ -5,13 +5,18 @@ namespace RMS\Accounting\Services;
 use RMS\Accounting\Models\PurchaseOrder;
 use RMS\Accounting\Models\PurchaseOrderItem;
 use RMS\Accounting\Models\SupplierInvoice;
+use RMS\Accounting\Models\Currency;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Throwable;
 
 /**
  * Purchase Order Service
- * 
- * مدیریت سفارش‌های خرید از تامین‌کنندگان
+ *
+ * مدیریت سفارش‌های خرید از تامین‌کنندگان.
+ *
+ * ثبت دفترکل خرید فقط از مسیر {@see \RMS\Accounting\Services\SupplierInvoiceService::postPurchaseAccountingDocument}
+ * روی فاکتور خرید انجام می‌شود؛ این سرویس سفارش را در GL ثبت نمی‌کند.
  */
 class PurchaseOrderService
 {
@@ -27,13 +32,14 @@ class PurchaseOrderService
             $po = new PurchaseOrder();
             $po->store_id = $data['store_id'];
             $po->supplier_id = $data['supplier_id'];
-            $po->po_number = $data['po_number'] ?? $this->generatePONumber();
+            $po->po_number = $data['po_number'] ?? $this->suggestNextPoNumber();
             $po->po_date = $data['po_date'] ?? Carbon::now();
             $po->expected_delivery_date = $data['expected_delivery_date'] ?? null;
             $po->status = $data['status'] ?? 'draft';
-            $po->currency_code = $data['currency_code'] ?? config('accounting.default_currency');
+            $po->currency_code = $data['currency_code']
+                ?? Currency::resolveBaseCurrencyCode('IRR');
             $po->notes = $data['notes'] ?? null;
-            $po->created_by = auth()->id();
+            $po->created_by = \RMS\Accounting\Support\AuditActor::actorId();
             $po->save();
 
             // Add items
@@ -61,11 +67,17 @@ class PurchaseOrderService
             $poItem = new PurchaseOrderItem();
             $poItem->purchase_order_id = $po->id;
             $poItem->product_id = $item['product_id'] ?? null;
-            $poItem->product_name = $item['product_name'] ?? null;
-            $poItem->description = $item['description'] ?? null;
+            $poItem->product_sku = $item['product_sku'] ?? null;
+            $poItem->product_name = $item['product_name'] ?? '';
+            $poItem->notes = $item['notes'] ?? null;
             $poItem->quantity = $item['quantity'];
             $poItem->unit_price = $item['unit_price'];
-            $poItem->total_price = $item['quantity'] * $item['unit_price'];
+            $poItem->tax_rate = $item['tax_rate'] ?? 0;
+            $poItem->discount_amount = $item['discount_amount'] ?? 0;
+            $qty = (float) $item['quantity'];
+            $unit = (float) $item['unit_price'];
+            $disc = (float) ($item['discount_amount'] ?? 0);
+            $poItem->total_price = max(0, $qty * $unit - $disc);
             $poItem->save();
         }
     }
@@ -75,9 +87,22 @@ class PurchaseOrderService
      */
     public function calculateTotals(PurchaseOrder $po): void
     {
-        $total = $po->items()->sum('total_price');
-        
-        $po->total_amount = $total;
+        $po->load(['items' => static fn ($q) => $q->orderBy('id')]);
+        $gross = 0.0;
+        $disc = 0.0;
+        foreach ($po->items as $i) {
+            $qty = (float) $i->quantity;
+            $unit = (float) $i->unit_price;
+            $lineDisc = (float) ($i->discount_amount ?? 0);
+            $gross += $qty * $unit;
+            $disc += $lineDisc;
+        }
+        $tax = 0.0;
+        $po->subtotal = $gross;
+        $po->discount_amount = $disc;
+        $po->tax_amount = $tax;
+        $po->total_amount = $gross - $disc + $tax;
+        $po->amount_base_at_order = $po->total_amount;
         $po->save();
     }
 
@@ -86,7 +111,7 @@ class PurchaseOrderService
      */
     public function changeStatus(PurchaseOrder $po, string $newStatus): PurchaseOrder
     {
-        $validStatuses = ['draft', 'sent', 'confirmed', 'partially_received', 'received', 'cancelled'];
+        $validStatuses = ['draft', 'sent', 'confirmed', 'partially_received', 'received', 'invoiced', 'cancelled'];
         
         if (!in_array($newStatus, $validStatuses)) {
             throw new \InvalidArgumentException("Invalid status: {$newStatus}");
@@ -168,62 +193,155 @@ class PurchaseOrderService
     }
 
     /**
-     * تولید شماره سفارش خرید
+     * پیشنهاد شمارهٔ سفارش خرید بعدی (برای فرم create و پر کردن خودکار).
      */
-    protected function generatePONumber(): string
+    public function suggestNextPoNumber(): string
     {
         $date = Carbon::now()->format('Ymd');
         $lastPO = PurchaseOrder::whereDate('created_at', Carbon::today())
             ->orderBy('id', 'desc')
             ->first();
 
-        $sequence = $lastPO ? (intval(substr($lastPO->po_number, -4)) + 1) : 1;
+        $sequence = 1;
+        if ($lastPO && is_string($lastPO->po_number) && preg_match('/-(\d{1,6})$/', $lastPO->po_number, $m)) {
+            $sequence = max(1, (int) $m[1] + 1);
+        }
 
-        return 'PO-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return 'PO-'.$date.'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
     }
 
     /**
-     * تبدیل سفارش خرید به فاکتور تامین‌کننده
+     * @deprecated use suggestNextPoNumber()
+     */
+    protected function generatePONumber(): string
+    {
+        return $this->suggestNextPoNumber();
+    }
+
+    /**
+     * آیا می‌توان از این سفارش یک فاکتور خرید تولید کرد؟ (بدون ثبت خودکار در دفتر کل)
+     *
+     * @return array{can: bool, reason: ?string, existing_invoice_id: ?int}
+     */
+    public function gateCreateSupplierInvoiceFromPurchaseOrder(PurchaseOrder $po): array
+    {
+        $po->loadMissing(['items']);
+
+        if ($po->items->isEmpty()) {
+            return [
+                'can' => false,
+                'reason' => (string) trans('accounting::accounting.purchase_order.invoice_from_po_no_lines'),
+                'existing_invoice_id' => null,
+            ];
+        }
+
+        if (! in_array((string) $po->status, PurchaseOrder::statusesEligibleForSupplierInvoice(), true)) {
+            return [
+                'can' => false,
+                'reason' => (string) trans('accounting::accounting.purchase_order.invoice_from_po_bad_status'),
+                'existing_invoice_id' => null,
+            ];
+        }
+
+        $existingId = SupplierInvoice::query()
+            ->where('purchase_order_id', $po->getKey())
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->value('id');
+
+        if ($existingId) {
+            return [
+                'can' => false,
+                'reason' => (string) trans('accounting::accounting.purchase_order.invoice_from_po_duplicate'),
+                'existing_invoice_id' => (int) $existingId,
+            ];
+        }
+
+        return ['can' => true, 'reason' => null, 'existing_invoice_id' => null];
+    }
+
+    /**
+     * تبدیل سفارش خرید به فاکتور تأمین‌کننده — فقط رکورد فاکتور و اقلام؛
+     * ثبت دفتر کل عمداً انجام نمی‌شود (همان دکمهٔ «ثبت سند» روی فاکتور).
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws \InvalidArgumentException
      */
     public function convertToSupplierInvoice(PurchaseOrder $po, array $data = []): SupplierInvoice
     {
-        if ($po->status !== 'received' && $po->status !== 'partially_received') {
-            throw new \InvalidArgumentException("PO must be received before converting to invoice");
+        $po->load(['items' => static fn ($q) => $q->orderBy('id')]);
+
+        $gate = $this->gateCreateSupplierInvoiceFromPurchaseOrder($po);
+        if (! $gate['can']) {
+            throw new \InvalidArgumentException($gate['reason'] ?? (string) trans('accounting::accounting.purchase_order.invoice_from_po_failed'));
         }
 
         try {
             DB::beginTransaction();
 
-            $invoice = new SupplierInvoice();
+            $invoiceDate = isset($data['invoice_date']) ? Carbon::parse($data['invoice_date']) : Carbon::now();
+            $dueDate = isset($data['due_date']) ? Carbon::parse($data['due_date']) : $invoiceDate->copy()->addDays(30);
+
+            $subtotal = (float) $po->subtotal;
+            $discHeader = (float) ($po->discount_amount ?? 0);
+            $taxHeader = (float) ($po->tax_amount ?? 0);
+            $total = (float) $po->total_amount;
+
+            $invoice = new SupplierInvoice;
             $invoice->store_id = $po->store_id;
             $invoice->supplier_id = $po->supplier_id;
-            $invoice->purchase_order_id = $po->id;
-            $invoice->invoice_number = $data['invoice_number'] ?? null;
-            $invoice->invoice_date = $data['invoice_date'] ?? Carbon::now();
-            $invoice->due_date = $data['due_date'] ?? Carbon::now()->addDays(30);
-            $invoice->status = 'pending';
-            $invoice->currency_code = $po->currency_code;
-            $invoice->subtotal = $po->total_amount;
-            $invoice->tax_amount = $data['tax_amount'] ?? 0;
-            $invoice->total_amount = $po->total_amount + ($data['tax_amount'] ?? 0);
-            $invoice->notes = $data['notes'] ?? $po->notes;
+            $invoice->purchase_order_id = $po->getKey();
+            $invoice->invoice_number = isset($data['invoice_number']) && (string) $data['invoice_number'] !== ''
+                ? (string) $data['invoice_number']
+                : SupplierInvoice::suggestNextInvoiceNumber();
+            $invoice->invoice_date = $invoiceDate->toDateString();
+            $invoice->due_date = $dueDate->toDateString();
+            $invoice->currency_code = (string) ($po->currency_code ?: 'IRR');
+            $invoice->fx_rate_at_invoice = (float) ($po->fx_rate_at_order ?? 1);
+            $invoice->subtotal = $subtotal;
+            $invoice->discount_amount = $discHeader;
+            $invoice->tax_amount = $taxHeader;
+            $invoice->total_amount = $total;
+            $invoice->amount_base_at_invoice = $total * (float) ($po->fx_rate_at_order ?? 1);
+            $invoice->shipping_amount = 0;
+            $invoice->payment_status = SupplierInvoice::STATUS_UNPAID;
+            $invoice->paid_amount = 0;
+            $invoice->balance_due = $total;
+            $invoice->settlement_mode = SupplierInvoice::SETTLEMENT_ON_ACCOUNT;
+            $invoice->paid_at_source_bank_id = null;
+            $invoice->paid_at_source_cash_box_id = null;
+            $invoice->paid_at_source_wallet_id = null;
+            $invoice->notes = isset($data['notes']) ? (string) $data['notes'] : ($po->notes ? (string) $po->notes : null);
+            $invoice->document_id = null;
             $invoice->save();
 
-            // Copy items
             foreach ($po->items as $poItem) {
+                $qtyOrdered = (float) $poItem->quantity;
+                $qtyReceived = $poItem->received_quantity !== null ? (float) $poItem->received_quantity : null;
+                $qty = $qtyReceived !== null && $qtyReceived > 0 ? min($qtyReceived, $qtyOrdered) : $qtyOrdered;
+                $unit = (float) $poItem->unit_price;
+                $lineDisc = (float) ($poItem->discount_amount ?? 0);
+                $lineTotal = max(0, round($qty * $unit - $lineDisc, 4));
+
                 $invoice->items()->create([
                     'product_id' => $poItem->product_id,
-                    'product_name' => $poItem->product_name,
-                    'description' => $poItem->description,
-                    'quantity' => $poItem->received_quantity ?? $poItem->quantity,
-                    'unit_price' => $poItem->unit_price,
-                    'total_price' => $poItem->total_price,
+                    'product_sku' => $poItem->product_sku,
+                    'product_name' => (string) ($poItem->product_name ?? ''),
+                    'quantity' => $qty,
+                    'unit_price' => $unit,
+                    'tax_rate' => (float) ($poItem->tax_rate ?? 0),
+                    'discount_amount' => $lineDisc,
+                    'total_price' => $lineTotal,
+                    'tax_amount' => 0,
+                    'shipping_amount' => 0,
                 ]);
             }
 
             DB::commit();
-            return $invoice->fresh();
-        } catch (\Exception $e) {
+
+            return $invoice->fresh(['items']);
+        } catch (Throwable $e) {
             DB::rollBack();
             throw $e;
         }

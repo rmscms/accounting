@@ -14,6 +14,14 @@ class FiscalYearsSeeder extends Seeder
     {
         $currentYear = now()->year;
 
+        // Check if fiscal year already exists
+        $existingYear = FiscalYear::where('year_code', (string) $currentYear)->first();
+
+        if ($existingYear) {
+            $this->command->info("ℹ️  سال مالی {$currentYear} از قبل وجود دارد.");
+            return;
+        }
+
         $fiscalYears = [
             [
                 'year_code' => (string) $currentYear,
@@ -27,6 +35,10 @@ class FiscalYearsSeeder extends Seeder
         foreach ($fiscalYears as $fiscalYear) {
             FiscalYear::create($fiscalYear);
         }
+
+        // Set other fiscal years as non-current
+        FiscalYear::where('year_code', '!=', (string) $currentYear)
+            ->update(['is_current' => false]);
 
         $this->command->info("✅ سال مالی {$currentYear} با موفقیت ایجاد شد.");
     }

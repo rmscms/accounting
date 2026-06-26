@@ -2,6 +2,7 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
+use RMS\Accounting\Http\Controllers\Admin\Concerns\RendersAccountingStructuredResourceForm;
 use RMS\Accounting\Models\AccountingDocument;
 use Illuminate\Http\Request;
 use RMS\Core\Data\Field;
@@ -11,6 +12,8 @@ use RMS\Core\Contracts\Filter\ShouldFilter;
 
 class DocumentsController extends AccountingAdminController implements HasList, HasForm, ShouldFilter
 {
+    use RendersAccountingStructuredResourceForm;
+
     public function table(): string
     {
         return 'accounting_documents';
@@ -23,7 +26,7 @@ class DocumentsController extends AccountingAdminController implements HasList, 
 
     public function baseRoute(): string
     {
-        return 'admin.accounting.documents';
+        return 'accounting.documents';
     }
 
     public function routeParameter(): string
@@ -36,7 +39,7 @@ class DocumentsController extends AccountingAdminController implements HasList, 
         return [
             Field::string('document_number', trans('accounting::accounting.document.document_number'))->required(),
             Field::select('document_type', trans('accounting::accounting.document.document_type'))
-                ->options([
+                ->setOptions([
                     'SALE' => trans('accounting::accounting.document_types.sale'),
                     'PURCHASE' => trans('accounting::accounting.document_types.purchase'),
                     'PAYMENT' => trans('accounting::accounting.document_types.payment'),
@@ -51,7 +54,7 @@ class DocumentsController extends AccountingAdminController implements HasList, 
                 ->required(),
             Field::textarea('description', trans('accounting::accounting.document.description'))->required(),
             Field::select('status', trans('accounting::accounting.document.status'))
-                ->options([
+                ->setOptions([
                     'draft' => trans('accounting::accounting.statuses.draft'),
                     'posted' => trans('accounting::accounting.statuses.posted'),
                     'reversed' => trans('accounting::accounting.statuses.reversed'),
@@ -79,15 +82,21 @@ class DocumentsController extends AccountingAdminController implements HasList, 
     {
         return [
             Field::select('document_type', trans('accounting::accounting.document.document_type'))
-                ->options([
+                ->setOptions([
                     '' => trans('accounting::accounting.common.all'),
                     'SALE' => trans('accounting::accounting.document_types.sale'),
                     'PURCHASE' => trans('accounting::accounting.document_types.purchase'),
                     'PAYMENT' => trans('accounting::accounting.document_types.payment'),
                     'RECEIPT' => trans('accounting::accounting.document_types.receipt'),
+                    'TAX' => trans('accounting::accounting.document_types.tax'),
+                    'FX_ADJUST' => trans('accounting::accounting.document_types.fx_adjust'),
+                    'CORRECTION' => trans('accounting::accounting.document_types.correction'),
+                    'OPENING' => trans('accounting::accounting.document_types.opening'),
+                    'CLOSING' => trans('accounting::accounting.document_types.closing'),
+                    'EXPENSE' => trans('accounting::accounting.document_types.expense'),
                 ]),
             Field::select('status', trans('accounting::accounting.document.status'))
-                ->options([
+                ->setOptions([
                     '' => trans('accounting::accounting.common.all'),
                     'draft' => trans('accounting::accounting.statuses.draft'),
                     'posted' => trans('accounting::accounting.statuses.posted'),

@@ -14,19 +14,29 @@ class SuppliersSimulator extends BaseSimulator
 
     public function simulate(): void
     {
-        $this->faker = Faker::create('fa_IR');
         $count = $this->option('suppliers', 300);
+        
+        // چک کردن تعداد تامین‌کنندگان موجود
+        $existingCount = DB::table('suppliers')->count();
+        
+        if ($existingCount >= $count) {
+            $this->success("تامین‌کنندگان: {$existingCount} تامین‌کننده موجود (skip)");
+            return;
+        }
+        
+        $this->faker = Faker::create('fa_IR');
+        $toCreate = $count - $existingCount;
 
-        $this->info("  🏭 در حال ایجاد {$count} تامین‌کننده...");
+        $this->info("  🏭 در حال ایجاد {$toCreate} تامین‌کننده جدید...");
 
-        $bar = $this->createProgressBar($count);
+        $bar = $this->createProgressBar($toCreate);
         $bar->start();
 
-        $domesticCount = (int) ($count * 0.70); // 70% داخلی
-        $foreignCount = $count - $domesticCount; // 30% خارجی
+        $domesticCount = (int) ($toCreate * 0.70); // 70% داخلی
+        $foreignCount = $toCreate - $domesticCount; // 30% خارجی
 
         $suppliers = [];
-        $id = 1;
+        $id = $existingCount + 1;
 
         // Domestic Suppliers
         for ($i = 0; $i < $domesticCount; $i++) {
@@ -50,7 +60,10 @@ class SuppliersSimulator extends BaseSimulator
 
     protected function generateSupplier(int $id, string $type): array
     {
-        $categories = ['مواد اولیه', 'قطعات', 'محصولات نهایی', 'بسته‌بندی'];
+        // Get accounts payable account ID
+        $accountsPayableAccount = DB::table('accounts')
+            ->where('code', '2-1-1')
+            ->first();
         
         return [
             'id' => $id,
@@ -64,7 +77,7 @@ class SuppliersSimulator extends BaseSimulator
             'address' => $type === 'domestic' ? $this->faker->address : $this->faker->country,
             'currency_code' => $type === 'domestic' ? 'IRR' : (rand(0, 1) ? 'CNY' : 'USD'),
             'payment_terms_days' => rand(30, 90),
-            'category' => $categories[array_rand($categories)],
+            'account_id' => $accountsPayableAccount->id,
             'active' => true,
             'created_at' => now(),
             'updated_at' => now(),

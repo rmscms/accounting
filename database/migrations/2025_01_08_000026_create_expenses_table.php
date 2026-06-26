@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('IRR');
             $table->foreign('currency_code')->references('code')->on('currencies');
             $table->decimal('fx_rate', 12, 6)->default(1);
-            $table->decimal('amount_irr', 20, 4);
+            $table->decimal('amount_base', 20, 4);
             $table->date('expense_date');
             $table->unsignedBigInteger('payment_id')->nullable()->comment('اگر پرداخت شده');
             $table->enum('payment_status', ['unpaid', 'paid', 'partially_paid'])->default('unpaid');

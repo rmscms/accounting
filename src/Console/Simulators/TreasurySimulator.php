@@ -23,6 +23,12 @@ class TreasurySimulator extends BaseSimulator
 
     protected function createBanks(): void
     {
+        // چک کردن تعداد بانک‌های موجود
+        $existingCount = DB::table('banks')->count();
+        if ($existingCount >= 3) {
+            return; // قبلاً ایجاد شده
+        }
+        
         // پیدا کردن حساب بانک از Chart of Accounts
         $bankAccountId = DB::table('accounts')->where('code', '1-1-2')->value('id');
         
@@ -43,6 +49,12 @@ class TreasurySimulator extends BaseSimulator
 
     protected function createCashBoxes(): void
     {
+        // چک کردن تعداد صندوق‌های موجود
+        $existingCount = DB::table('cash_boxes')->count();
+        if ($existingCount >= 2) {
+            return; // قبلاً ایجاد شده
+        }
+        
         // پیدا کردن حساب صندوق
         $cashAccountId = DB::table('accounts')->where('code', '1-1-1')->value('id');
         
@@ -62,6 +74,12 @@ class TreasurySimulator extends BaseSimulator
 
     protected function createPOSTerminals(): void
     {
+        // چک کردن تعداد ترمینال‌های موجود
+        $existingCount = DB::table('pos_terminals')->count();
+        if ($existingCount >= 2) {
+            return; // قبلاً ایجاد شده
+        }
+        
         $terminals = [
             ['name' => 'POS 1', 'serial_number' => 'POS' . rand(100000, 999999), 'terminal_id' => 'T' . rand(1000, 9999), 'bank_id' => 3, 'location' => 'صندوق اصلی'],
             ['name' => 'POS 2', 'serial_number' => 'POS' . rand(100000, 999999), 'terminal_id' => 'T' . rand(1000, 9999), 'bank_id' => 3, 'location' => 'صندوق خرده فروشی'],
@@ -78,6 +96,12 @@ class TreasurySimulator extends BaseSimulator
 
     protected function createPaymentMethods(): void
     {
+        // چک کردن روش‌های پرداخت موجود
+        $existingCount = DB::table('payment_methods')->count();
+        if ($existingCount >= 5) {
+            return; // قبلاً ایجاد شده
+        }
+        
         $methods = [
             ['code' => 'CASH', 'name' => 'نقدی', 'type' => 'cash', 'requires_bank' => false, 'requires_pos' => false, 'sort_order' => 1],
             ['code' => 'CARD_TO_CARD', 'name' => 'کارت به کارت', 'type' => 'card_transfer', 'requires_bank' => true, 'requires_pos' => false, 'sort_order' => 2],
@@ -87,11 +111,15 @@ class TreasurySimulator extends BaseSimulator
         ];
 
         foreach ($methods as $method) {
-            DB::table('payment_methods')->insert(array_merge($method, [
-                'active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]));
+            // چک کنیم این روش پرداخت وجود داره یا نه
+            $exists = DB::table('payment_methods')->where('code', $method['code'])->exists();
+            if (!$exists) {
+                DB::table('payment_methods')->insert(array_merge($method, [
+                    'active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]));
+            }
         }
     }
 }

@@ -3,22 +3,25 @@
 namespace RMS\Accounting\Http\Controllers\Admin;
 
 use RMS\Accounting\Models\FinancialLedger;
-use RMS\Accounting\Services\LedgerService;
+use RMS\Accounting\Models\Account;
+use RMS\Accounting\Services\AccountingDateInputNormalizer;
+use RMS\Accounting\Support\AccountingDateUi;
 use Illuminate\Http\Request;
 
 /**
- * کنترلر دفتر کل
+ * دفتر روزنامه: فهرست خطوط دفتر مالی (\RMS\Accounting\Models\FinancialLedger) به ترتیب زمان.
+ * گزارش «دفتر کل» به تفکیک حساب در ReportsController::generalLedger است.
  */
 class LedgerController extends AccountingAdminController
 {
     /**
-     * نمایش دفتر کل
+     * لیست ثبت‌ها به ترتیب created_at (مفهوم نزدیک به دفتر روزنامه).
      */
     public function index(Request $request)
     {
-        $query = FinancialLedger::with(['account', 'document', 'fiscalYear'])
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc');
+        $query = FinancialLedger::with(['account', 'document'])
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc');
 
         // فیلترها
         if ($request->filled('account_id')) {
@@ -26,19 +29,24 @@ class LedgerController extends AccountingAdminController
         }
 
         if ($request->filled('document_id')) {
-            $query->where('document_id', $request->document_id);
+            $query->where('accounting_document_id', $request->document_id);
         }
 
+        $dateNorm = app(AccountingDateInputNormalizer::class);
+
         if ($request->filled('from_date')) {
-            $query->where('transaction_date', '>=', $request->from_date);
+            $fromDate = $dateNorm->normalizeFilterDateToGregorian((string) $request->from_date);
+            if ($fromDate) {
+                $query->where('created_at', '>=', $fromDate . (strlen($fromDate) === 10 ? ' 00:00:00' : ''));
+            }
         }
 
         if ($request->filled('to_date')) {
-            $query->where('transaction_date', '<=', $request->to_date);
-        }
-
-        if ($request->filled('fiscal_year_id')) {
-            $query->where('fiscal_year_id', $request->fiscal_year_id);
+            $toDate = $dateNorm->normalizeFilterDateToGregorian((string) $request->to_date);
+            if ($toDate) {
+                $suffix = strlen($toDate) === 10 ? ' 23:59:59' : '';
+                $query->where('created_at', '<=', $toDate . $suffix);
+            }
         }
 
         if ($request->filled('store_id')) {
@@ -53,32 +61,46 @@ class LedgerController extends AccountingAdminController
             'credit' => $entries->sum('credit_amount'),
         ];
 
-        return $this->view->usePackageNamespace('accounting')
+        // دریافت لیست حساب‌ها برای فیلتر
+        $accounts = Account::where('active', true)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
+
+        $plugins = AccountingDateUi::calendarMode() === AccountingDateUi::MODE_JALALI
+            ? ['persian-datepicker']
+            : [];
+
+        $this->view->usePackageNamespace('accounting')
             ->setTheme('admin')
-            ->setTpl('ledger.index')
+            ->setTpl('ledger/index')
+            ->withPlugins($plugins)
             ->withCss('vendor/accounting/admin/css/ledger.css', true)
-            ->withJs('vendor/accounting/admin/js/ledger.js', true)
-            ->with([
+            ->withVariables([
                 'entries' => $entries,
                 'totals' => $totals,
+                'accounts' => $accounts,
             ]);
+
+        return $this->view();
     }
 
     /**
-     * نمایش جزئیات یک ثبت
+     * جزئیات یک خط ثبت (دفتر روزنامه).
      */
     public function show(int $id)
     {
-        $entry = FinancialLedger::with(['account', 'document', 'fiscalYear'])
+        $entry = FinancialLedger::with(['account', 'document'])
             ->findOrFail($id);
 
-        return $this->view->usePackageNamespace('accounting')
+        $this->view->usePackageNamespace('accounting')
             ->setTheme('admin')
             ->setTpl('ledger.show')
             ->withCss('vendor/accounting/admin/css/ledger.css', true)
-            ->with([
+            ->withVariables([
                 'entry' => $entry,
             ]);
+
+        return $this->view();
     }
 
     /**

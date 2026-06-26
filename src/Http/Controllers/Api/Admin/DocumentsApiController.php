@@ -117,7 +117,7 @@ class DocumentsApiController
             ], 422);
         }
 
-        $this->ledgerService->postDocument($document);
+        $this->documentService->postDocument($document->id);
 
         return response()->json([
             'message' => 'Document posted successfully',

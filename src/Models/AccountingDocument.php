@@ -24,7 +24,10 @@ class AccountingDocument extends Model
         'status',
         'posted_at',
         'reversed_by_document_id',
+        'created_by_admin_id',
         'created_by_user_id',
+        'posted_by_admin_id',
+        'posted_by_user_id',
     ];
 
     protected $casts = [
@@ -75,12 +78,42 @@ class AccountingDocument extends Model
         return $this->hasMany(FinancialLedger::class, 'accounting_document_id');
     }
 
+    /** @deprecated Use ledgerEntries(); نام قدیمی برای سازگاری با کدهای قبلی */
+    public function ledgers(): HasMany
+    {
+        return $this->ledgerEntries();
+    }
+
     /**
      * Reversed by Document
      */
     public function reversedBy(): BelongsTo
     {
         return $this->belongsTo(AccountingDocument::class, 'reversed_by_document_id');
+    }
+
+    public function createdByAdmin(): BelongsTo
+    {
+        $adminModel = config('auth.providers.admins.model', \App\Models\Admin::class);
+
+        return $this->belongsTo($adminModel, 'created_by_admin_id');
+    }
+
+    public function createdByUser(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by_user_id');
+    }
+
+    public function postedByAdmin(): BelongsTo
+    {
+        $adminModel = config('auth.providers.admins.model', \App\Models\Admin::class);
+
+        return $this->belongsTo($adminModel, 'posted_by_admin_id');
+    }
+
+    public function postedByUser(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'posted_by_user_id');
     }
 
     /**
@@ -103,6 +136,13 @@ class AccountingDocument extends Model
         // Validate balance
         if (!$this->isBalanced()) {
             throw new \Exception('Document is not balanced. Total Debit must equal Total Credit.');
+        }
+
+        if ($this->fiscal_year_id) {
+            $fiscalYear = FiscalYear::find($this->fiscal_year_id);
+            if ($fiscalYear && ! $fiscalYear->isOpen()) {
+                throw new \Exception(trans('accounting::accounting.errors.fiscal_year_not_open_for_posting'));
+            }
         }
 
         $this->status = self::STATUS_POSTED;

@@ -5,38 +5,85 @@
             'title' => 'داشبورد حسابداری',
             'url' => route('admin.accounting.dashboard'),
             'icon' => 'ph-chart-pie',
+            'iconColor' => 'primary',
             'routes' => ['admin.accounting.dashboard'],
         ],
         [
-            'title' => 'دفاتر',
-            'icon' => 'ph-books',
-            'children' => [
-                [
-                    'title' => 'دفتر کل',
-                    'url' => route('admin.accounting.ledger.index'),
-                    'routes' => ['admin.accounting.ledger.*'],
-                ],
-                [
-                    'title' => 'اسناد حسابداری',
-                    'url' => route('admin.accounting.documents.index'),
-                    'routes' => ['admin.accounting.documents.*'],
-                ],
-            ],
+            'title' => 'دفتر روزنامه',
+            'url' => route('admin.accounting.ledger.index'),
+            'icon' => 'ph-notebook',
+            'iconColor' => 'info',
+            'routes' => ['admin.accounting.ledger.*'],
+        ],
+        [
+            'title' => 'گزارش دفتر کل',
+            'url' => route('admin.accounting.reports.general-ledger'),
+            'icon' => 'ph-book',
+            'iconColor' => 'primary',
+            'routes' => ['admin.accounting.reports.general-ledger'],
+        ],
+        [
+            'title' => 'گزارش مانده وام کارکنان',
+            'url' => route('admin.accounting.reports.employee-loan-balances'),
+            'icon' => 'ph-hand-coins',
+            'iconColor' => 'info',
+            'routes' => ['admin.accounting.reports.employee-loan-balances', 'admin.accounting.reports.employee-loan-installments-due', 'admin.accounting.reports.employee-contracts'],
+        ],
+        [
+            'title' => 'گزارش قرارداد کارمندان',
+            'url' => route('admin.accounting.reports.employee-contracts'),
+            'icon' => 'ph-identification-card',
+            'iconColor' => 'primary',
+            'routes' => ['admin.accounting.reports.employee-contracts'],
+        ],
+        [
+            'title' => 'اسناد حسابداری',
+            'url' => route('admin.accounting.documents.index'),
+            'icon' => 'ph-files',
+            'iconColor' => 'secondary',
+            'routes' => ['admin.accounting.documents.*'],
+        ],
+        [
+            'title' => 'ثبت سند دستی',
+            'url' => route('admin.accounting.manual-journals.index'),
+            'icon' => 'ph-pencil-line',
+            'iconColor' => 'warning',
+            'routes' => ['admin.accounting.manual-journals.*'],
         ],
         [
             'title' => 'حساب‌ها',
+            'url' => route('admin.accounting.accounts.index'),
             'icon' => 'ph-list-dashes',
+            'iconColor' => 'secondary',
+            'routes' => ['admin.accounting.accounts.*'],
+        ],
+        [
+            'title' => 'روش‌های پرداخت',
+            'url' => route('admin.accounting.payment-methods.index'),
+            'icon' => 'ph-credit-card',
+            'iconColor' => 'info',
+            'routes' => ['admin.accounting.payment-methods.*'],
+        ],
+        [
+            'title' => 'مشتریان',
+            'url' => route('admin.accounting.customers.index'),
+            'icon' => 'ph-users',
+            'iconColor' => 'success',
+            'routes' => ['admin.accounting.customers.*'],
             'children' => [
                 [
-                    'title' => 'لیست حساب‌ها',
-                    'url' => route('admin.accounting.accounts.index'),
-                    'routes' => ['admin.accounting.accounts.*'],
+                    'title' => 'لیست مشتریان',
+                    'url' => route('admin.accounting.customers.index'),
+                    'routes' => ['admin.accounting.customers.*'],
                 ],
             ],
         ],
         [
             'title' => 'دریافتنی‌ها',
+            'url' => route('admin.accounting.customer-invoices.index'),
             'icon' => 'ph-arrow-down-left',
+            'iconColor' => 'success',
+            'routes' => ['admin.accounting.customer-invoices.*', 'admin.accounting.customer-payments.*', 'admin.accounting.credit-notes.*', 'admin.accounting.customer-refunds.*', 'admin.accounting.customer-advances.*'],
             'children' => [
                 [
                     'title' => 'فاکتورهای مشتری',
@@ -48,12 +95,35 @@
                     'url' => route('admin.accounting.customer-payments.index'),
                     'routes' => ['admin.accounting.customer-payments.*'],
                 ],
+                [
+                    'title' => 'اعتبار برگشتی (Credit Notes)',
+                    'url' => route('admin.accounting.credit-notes.index'),
+                    'routes' => ['admin.accounting.credit-notes.*'],
+                ],
+                [
+                    'title' => 'بازگشت وجه به مشتری',
+                    'url' => route('admin.accounting.customer-refunds.index'),
+                    'routes' => ['admin.accounting.customer-refunds.*'],
+                ],
+                [
+                    'title' => 'پیش دریافت از مشتری',
+                    'url' => route('admin.accounting.customer-advances.index'),
+                    'routes' => ['admin.accounting.customer-advances.*'],
+                ],
             ],
         ],
         [
             'title' => 'پرداختنی‌ها',
+            'url' => route('admin.accounting.supplier-payments.index'),
             'icon' => 'ph-arrow-up-right',
+            'iconColor' => 'danger',
+            'routes' => ['admin.accounting.purchases.*', 'admin.accounting.suppliers.*', 'admin.accounting.purchase-orders.*', 'admin.accounting.supplier-invoices.*', 'admin.accounting.supplier-payments.*', 'admin.accounting.debit-notes.*', 'admin.accounting.supplier-refunds.*', 'admin.accounting.supplier-advances.*'],
             'children' => [
+                [
+                    'title' => 'داشبورد خرید',
+                    'url' => route('admin.accounting.purchases.dashboard'),
+                    'routes' => ['admin.accounting.purchases.*'],
+                ],
                 [
                     'title' => 'تامین‌کنندگان',
                     'url' => route('admin.accounting.suppliers.index'),
@@ -69,16 +139,100 @@
                     'url' => route('admin.accounting.supplier-invoices.index'),
                     'routes' => ['admin.accounting.supplier-invoices.*'],
                 ],
+                [
+                    'title' => 'پرداخت‌ها به تامین‌کنندگان',
+                    'url' => route('admin.accounting.supplier-payments.index'),
+                    'routes' => ['admin.accounting.supplier-payments.*'],
+                ],
+                [
+                    'title' => 'یادداشت بدهکار (Debit Notes)',
+                    'url' => route('admin.accounting.debit-notes.index'),
+                    'routes' => ['admin.accounting.debit-notes.*'],
+                ],
+                [
+                    'title' => 'دریافت بازگشت از تامین‌کننده',
+                    'url' => route('admin.accounting.supplier-refunds.index'),
+                    'routes' => ['admin.accounting.supplier-refunds.*'],
+                ],
+                [
+                    'title' => 'پیش پرداخت به تامین‌کننده',
+                    'url' => route('admin.accounting.supplier-advances.index'),
+                    'routes' => ['admin.accounting.supplier-advances.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'حقوق و کارمندان',
+            'url' => route('admin.accounting.employees.index'),
+            'icon' => 'ph-identification-badge',
+            'iconColor' => 'warning',
+            'routes' => ['admin.accounting.employees.*', 'admin.accounting.payroll-runs.*', 'admin.accounting.payroll-insurance.*', 'admin.accounting.attendance-worklogs.*', 'admin.accounting.employee-loans.*', 'admin.accounting.employee-contracts.*'],
+            'children' => [
+                [
+                    'title' => 'کارمندان',
+                    'url' => route('admin.accounting.employees.index'),
+                    'routes' => ['admin.accounting.employees.*'],
+                ],
+                [
+                    'title' => 'حقوق و دستمزد',
+                    'url' => route('admin.accounting.payroll-runs.index'),
+                    'routes' => ['admin.accounting.payroll-runs.*'],
+                ],
+                [
+                    'title' => 'بیمهٔ تأمین',
+                    'url' => route('admin.accounting.payroll-insurance.index'),
+                    'routes' => ['admin.accounting.payroll-insurance.*'],
+                ],
+                [
+                    'title' => 'کارکرد و حضور و غیاب',
+                    'url' => route('admin.accounting.attendance-worklogs.index'),
+                    'routes' => ['admin.accounting.attendance-worklogs.*'],
+                ],
+                [
+                    'title' => 'وام کارکنان',
+                    'url' => route('admin.accounting.employee-loans.index'),
+                    'routes' => ['admin.accounting.employee-loans.*'],
+                    'children' => [
+                        [
+                            'title' => 'لیست وام‌ها',
+                            'url' => route('admin.accounting.employee-loans.index'),
+                            'routes' => ['admin.accounting.employee-loans.index', 'admin.accounting.employee-loans.show'],
+                        ],
+                        [
+                            'title' => 'ثبت وام جدید',
+                            'url' => route('admin.accounting.employee-loans.create'),
+                            'routes' => ['admin.accounting.employee-loans.create', 'admin.accounting.employee-loans.edit'],
+                        ],
+                    ],
+                ],
+                [
+                    'title' => 'قرارداد کارمندان',
+                    'url' => route('admin.accounting.employee-contracts.index'),
+                    'routes' => ['admin.accounting.employee-contracts.*'],
+                ],
             ],
         ],
         [
             'title' => 'خزانه‌داری',
+            'url' => route('admin.accounting.banks.index'),
             'icon' => 'ph-vault',
+            'iconColor' => 'warning',
+            'routes' => ['admin.accounting.banks.*', 'admin.accounting.cashboxes.*', 'admin.accounting.pos-terminals.*', 'admin.accounting.cheques.*', 'admin.accounting.reconciliations.*', 'admin.accounting.bank-reconciliation.*', 'admin.accounting.bank-transfers.*', 'admin.accounting.bank-transactions.*'],
             'children' => [
                 [
                     'title' => 'بانک‌ها',
                     'url' => route('admin.accounting.banks.index'),
                     'routes' => ['admin.accounting.banks.*'],
+                ],
+                [
+                    'title' => 'انتقال بین بانکی',
+                    'url' => route('admin.accounting.bank-transfers.index'),
+                    'routes' => ['admin.accounting.bank-transfers.*'],
+                ],
+                [
+                    'title' => 'تراکنش‌های بانکی',
+                    'url' => route('admin.accounting.bank-transactions.index'),
+                    'routes' => ['admin.accounting.bank-transactions.*'],
                 ],
                 [
                     'title' => 'صندوق‌ها',
@@ -96,20 +250,23 @@
                     'routes' => ['admin.accounting.cheques.*'],
                 ],
                 [
-                    'title' => 'روش‌های پرداخت',
-                    'url' => route('admin.accounting.payment-methods.index'),
-                    'routes' => ['admin.accounting.payment-methods.*'],
-                ],
-                [
                     'title' => 'تطبیق پرداخت‌ها',
                     'url' => route('admin.accounting.reconciliations.index'),
                     'routes' => ['admin.accounting.reconciliations.*'],
+                ],
+                [
+                    'title' => 'تطبیق بانک (پیشرفته)',
+                    'url' => route('admin.accounting.bank-reconciliation.workspace'),
+                    'routes' => ['admin.accounting.bank-reconciliation.*'],
                 ],
             ],
         ],
         [
             'title' => 'هزینه‌ها',
+            'url' => route('admin.accounting.expenses.index'),
             'icon' => 'ph-receipt',
+            'iconColor' => 'danger',
+            'routes' => ['admin.accounting.expenses.*', 'admin.accounting.expense-categories.*', 'admin.accounting.accruals.*', 'admin.accounting.inventory-adjustments.*'],
             'children' => [
                 [
                     'title' => 'لیست هزینه‌ها',
@@ -121,26 +278,102 @@
                     'url' => route('admin.accounting.expense-categories.index'),
                     'routes' => ['admin.accounting.expense-categories.*'],
                 ],
+                [
+                    'title' => 'تعهدات و اسناد تعدیل',
+                    'url' => route('admin.accounting.accruals.index'),
+                    'routes' => ['admin.accounting.accruals.*'],
+                ],
+                [
+                    'title' => 'تعدیل موجودی کالا',
+                    'url' => route('admin.accounting.inventory-adjustments.index'),
+                    'routes' => ['admin.accounting.inventory-adjustments.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'دارایی‌های ثابت',
+            'url' => route('admin.accounting.fixed-assets.index'),
+            'icon' => 'ph-buildings',
+            'iconColor' => 'info',
+            'routes' => ['admin.accounting.fixed-assets.*', 'admin.accounting.fixed-asset-categories.*'],
+            'children' => [
+                [
+                    'title' => 'لیست دارایی‌ها',
+                    'url' => route('admin.accounting.fixed-assets.index'),
+                    'routes' => ['admin.accounting.fixed-assets.*'],
+                ],
+                [
+                    'title' => 'دسته‌بندی دارایی‌ها',
+                    'url' => route('admin.accounting.fixed-asset-categories.index'),
+                    'routes' => ['admin.accounting.fixed-asset-categories.*'],
+                ],
+            ],
+        ],
+        [
+            'title' => 'ارزها',
+            'url' => route('admin.accounting.currencies.index'),
+            'icon' => 'ph-currency-circle-dollar',
+            'iconColor' => 'success',
+            'routes' => ['admin.accounting.currencies.*'],
+            'children' => [
+                [
+                    'title' => 'لیست ارزها',
+                    'url' => route('admin.accounting.currencies.index'),
+                    'routes' => ['admin.accounting.currencies.*'],
+                ],
             ],
         ],
         [
             'title' => 'تنظیمات',
+            'url' => route('admin.accounting.settings.index'),
             'icon' => 'ph-gear',
+            'iconColor' => 'secondary',
+            'routes' => ['admin.accounting.settings.*', 'admin.accounting.sample-data.*', 'admin.accounting.scenario-runner.*', 'admin.accounting.fiscal_years.*', 'admin.accounting.currencies.*', 'admin.accounting.tax-rates.*', 'admin.accounting.bad-debt.*', 'admin.accounting.onboarding', 'admin.accounting.guides.opening-balance'],
             'children' => [
+                [
+                    'title' => 'ویزارد راه‌اندازی',
+                    'url' => route('admin.accounting.onboarding'),
+                    'routes' => ['admin.accounting.onboarding'],
+                ],
+                [
+                    'title' => 'راهنمای سند افتتاحیه',
+                    'url' => route('admin.accounting.guides.opening-balance'),
+                    'routes' => ['admin.accounting.guides.opening-balance'],
+                ],
+                [
+                    'title' => 'تنظیمات حسابداری',
+                    'url' => route('admin.accounting.settings.index'),
+                    'routes' => ['admin.accounting.settings.*'],
+                ],
+                [
+                    'title' => 'دیتای آزمایشی',
+                    'url' => route('admin.accounting.sample-data.index'),
+                    'routes' => ['admin.accounting.sample-data.*'],
+                ],
+                [
+                    'title' => 'تست سناریوی حسابداری',
+                    'url' => route('admin.accounting.scenario-runner.index'),
+                    'routes' => ['admin.accounting.scenario-runner.*'],
+                ],
+                [
+                    'title' => 'سال‌های مالی',
+                    'url' => route('admin.accounting.fiscal_years.index'),
+                    'routes' => ['admin.accounting.fiscal_years.*'],
+                ],
                 [
                     'title' => 'ارزها',
                     'url' => route('admin.accounting.currencies.index'),
                     'routes' => ['admin.accounting.currencies.*'],
                 ],
                 [
-                    'title' => 'نرخ‌های مالیاتی',
+                    'title' => 'نرخ مالیات',
                     'url' => route('admin.accounting.tax-rates.index'),
                     'routes' => ['admin.accounting.tax-rates.*'],
                 ],
                 [
-                    'title' => 'سال‌های مالی',
-                    'url' => route('admin.accounting.fiscal-years.index'),
-                    'routes' => ['admin.accounting.fiscal-years.*'],
+                    'title' => 'مطالبات مشکوک الوصول',
+                    'url' => route('admin.accounting.bad-debt.index'),
+                    'routes' => ['admin.accounting.bad-debt.*'],
                 ],
             ],
         ],
@@ -148,9 +381,30 @@
             'title' => 'گزارش‌ها',
             'url' => route('admin.accounting.reports.index'),
             'icon' => 'ph-file-text',
+            'iconColor' => 'info',
             'routes' => ['admin.accounting.reports.*'],
         ],
     ];
+
+    if (\Illuminate\Support\Facades\Route::has('admin.accounting.utility-bills.index')) {
+        foreach ($accountingChildren as $idx => $entry) {
+            if (($entry['title'] ?? '') !== 'هزینه‌ها') {
+                continue;
+            }
+            $accountingChildren[$idx]['routes'] = array_values(array_unique(array_merge(
+                (array) ($accountingChildren[$idx]['routes'] ?? []),
+                ['admin.accounting.utility-bills.*']
+            )));
+            $children = $accountingChildren[$idx]['children'] ?? [];
+            array_splice($children, 2, 0, [[
+                'title' => 'ثبت قبوض',
+                'url' => route('admin.accounting.utility-bills.index'),
+                'routes' => ['admin.accounting.utility-bills.*'],
+            ]]);
+            $accountingChildren[$idx]['children'] = $children;
+            break;
+        }
+    }
 @endphp
 
 <x-cms::submenu-item

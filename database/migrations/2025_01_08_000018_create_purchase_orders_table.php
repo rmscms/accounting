@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('IRR');
             $table->foreign('currency_code')->references('code')->on('currencies');
             $table->decimal('fx_rate_at_order', 12, 6)->default(1);
-            $table->decimal('amount_irr_at_order', 20, 4);
+            $table->decimal('amount_base_at_order', 20, 4);
             $table->enum('status', ['draft', 'sent', 'confirmed', 'received', 'invoiced', 'cancelled'])->default('draft');
             $table->text('notes')->nullable();
             $table->unsignedBigInteger('created_by_user_id')->nullable();

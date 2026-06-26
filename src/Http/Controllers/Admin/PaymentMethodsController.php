@@ -2,6 +2,7 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
+use RMS\Accounting\Http\Controllers\Admin\Concerns\RendersAccountingStructuredResourceForm;
 use RMS\Accounting\Models\PaymentMethod;
 use Illuminate\Http\Request;
 use RMS\Core\Controllers\Admin\AdminController;
@@ -17,6 +18,8 @@ class PaymentMethodsController extends AccountingAdminController implements
     ShouldFilter,
     ChangeBoolField
 {
+    use RendersAccountingStructuredResourceForm;
+
     public function table(): string
     {
         return 'payment_methods';
@@ -51,10 +54,7 @@ class PaymentMethodsController extends AccountingAdminController implements
                 ->setOptions($this->getPaymentTypeOptions())
                 ->required(),
 
-            Field::textarea('description', trans('accounting::accounting.fields.description'))
-                ->optional(),
-
-            Field::number('sort', trans('accounting::accounting.fields.sort'))
+            Field::number('sort_order', trans('accounting::accounting.fields.sort'))
                 ->withDefaultValue(0)
                 ->required(),
 
@@ -70,7 +70,7 @@ class PaymentMethodsController extends AccountingAdminController implements
             Field::make('code')->withTitle(trans('accounting::accounting.fields.payment_method_code'))->searchable()->sortable()->width('140px'),
             Field::make('name')->withTitle(trans('accounting::accounting.fields.payment_method_name'))->searchable()->sortable(),
             Field::make('type')->withTitle(trans('accounting::accounting.fields.payment_type'))->sortable()->width('120px'),
-            Field::number('sort')->withTitle(trans('accounting::accounting.fields.sort'))->width('90px'),
+            Field::number('sort_order')->withTitle(trans('accounting::accounting.fields.sort'))->width('90px'),
             Field::boolean('active')->withTitle(trans('accounting::accounting.fields.status'))->sortable()->width('100px'),
         ];
     }
@@ -82,9 +82,8 @@ class PaymentMethodsController extends AccountingAdminController implements
         return [
             'code' => ['required', 'string', 'max:50', 'unique:payment_methods,code,' . ($id ?? 'NULL')],
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:cash,pos,online,cheque,card_to_card,wallet'],
-            'description' => ['nullable', 'string'],
-            'sort' => ['required', 'integer', 'min:0'],
+            'type' => ['required', 'in:cash,pos,online,cheque,card_transfer,bank_transfer,wallet'],
+            'sort_order' => ['required', 'integer', 'min:0'],
             'active' => ['boolean'],
         ];
     }
@@ -101,7 +100,8 @@ class PaymentMethodsController extends AccountingAdminController implements
             'pos' => trans('accounting::accounting.payment_types.pos'),
             'online' => trans('accounting::accounting.payment_types.online'),
             'cheque' => trans('accounting::accounting.payment_types.cheque'),
-            'card_to_card' => trans('accounting::accounting.payment_types.card_to_card'),
+            'card_transfer' => trans('accounting::accounting.payment_types.card_to_card'),
+            'bank_transfer' => trans('accounting::accounting.payment_types.bank_transfer'),
             'wallet' => trans('accounting::accounting.payment_types.wallet'),
         ];
     }

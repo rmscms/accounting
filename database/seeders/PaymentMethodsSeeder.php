@@ -16,70 +16,81 @@ class PaymentMethodsSeeder extends Seeder
             [
                 'code' => 'cash',
                 'name' => 'نقدی',
-                'name_en' => 'Cash',
                 'type' => 'cash',
                 'requires_bank' => false,
-                'requires_reference' => false,
+                'requires_pos' => false,
+                'requires_gateway' => false,
                 'active' => true,
+                'sort_order' => 1,
             ],
             [
                 'code' => 'pos',
                 'name' => 'کارتخوان (POS)',
-                'name_en' => 'POS Terminal',
                 'type' => 'pos',
                 'requires_bank' => false,
-                'requires_reference' => true,
+                'requires_pos' => true,
+                'requires_gateway' => false,
                 'active' => true,
+                'sort_order' => 2,
             ],
             [
                 'code' => 'online',
                 'name' => 'پرداخت آنلاین',
-                'name_en' => 'Online Payment',
                 'type' => 'online',
                 'requires_bank' => true,
-                'requires_reference' => true,
+                'requires_pos' => false,
+                'requires_gateway' => true,
                 'active' => true,
+                'sort_order' => 3,
             ],
             [
                 'code' => 'cheque',
                 'name' => 'چک',
-                'name_en' => 'Cheque',
                 'type' => 'cheque',
                 'requires_bank' => true,
-                'requires_reference' => true,
+                'requires_pos' => false,
+                'requires_gateway' => false,
                 'active' => true,
+                'sort_order' => 4,
             ],
             [
-                'code' => 'card_to_card',
+                'code' => 'card_transfer',
                 'name' => 'کارت به کارت',
-                'name_en' => 'Card to Card',
-                'type' => 'card_to_card',
+                'type' => 'card_transfer',
                 'requires_bank' => true,
-                'requires_reference' => true,
+                'requires_pos' => false,
+                'requires_gateway' => false,
                 'active' => true,
+                'sort_order' => 5,
+            ],
+            [
+                'code' => 'bank_transfer',
+                'name' => 'انتقال بین بانکی (پایا/ساتنا)',
+                'type' => 'bank_transfer',
+                'requires_bank' => true,
+                'requires_pos' => false,
+                'requires_gateway' => false,
+                'active' => true,
+                'sort_order' => 6,
             ],
             [
                 'code' => 'wallet',
                 'name' => 'کیف پول',
-                'name_en' => 'Wallet',
                 'type' => 'wallet',
                 'requires_bank' => false,
-                'requires_reference' => false,
+                'requires_pos' => false,
+                'requires_gateway' => false,
                 'active' => true,
-            ],
-            [
-                'code' => 'bank_transfer',
-                'name' => 'انتقال بانکی',
-                'name_en' => 'Bank Transfer',
-                'type' => 'bank',
-                'requires_bank' => true,
-                'requires_reference' => true,
-                'active' => true,
+                'sort_order' => 7,
             ],
         ];
 
         foreach ($methods as $method) {
-            PaymentMethod::create($method);
+            // اگر روش پرداخت با این کد وجود داشت، skip کن
+            $existing = PaymentMethod::where('code', $method['code'])->first();
+            if (!$existing) {
+                PaymentMethod::create($method);
+            }
         }
 
         $this->command->info('✅ روش‌های پرداخت پیش‌فرض با موفقیت ایجاد شد.');

@@ -2,8 +2,10 @@
 
 namespace RMS\Accounting\Http\Controllers\Admin;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RMS\Accounting\Services\ReportService;
+use RMS\Accounting\Support\AccountingDateUi;
 
 /**
  * کنترلر گزارش‌های مالی
@@ -16,11 +18,12 @@ class ReportsController extends AccountingAdminController
      */
     public function index(Request $request)
     {
-        return $this->view->usePackageNamespace('accounting')
+        $this->view->usePackageNamespace('accounting')
             ->setTheme('admin')
             ->setTpl('reports.index')
-            ->withCss('vendor/accounting/admin/css/reports.css', true)
-            ->withJs('vendor/accounting/admin/js/reports.js', true);
+            ->withCss('vendor/accounting/admin/css/reports.css', true);
+
+        return $this->view();
     }
 
     // ==========================================
@@ -36,6 +39,31 @@ class ReportsController extends AccountingAdminController
         $data = $reportService->getGeneralLedger($request->all());
 
         return $this->renderReport('general-ledger', $data);
+    }
+
+    /**
+     * یک سطح زیرشاخهٔ دفتر کل (برای بارگذاری تنبل با AJAX)
+     */
+    public function generalLedgerBranch(Request $request)
+    {
+        $request->validate([
+            'account_id' => 'required|integer|exists:accounts,id',
+            'from_date' => 'nullable|string|max:64',
+            'to_date' => 'nullable|string|max:64',
+            'start_date' => 'nullable|string|max:64',
+            'end_date' => 'nullable|string|max:64',
+        ]);
+
+        $nodes = app(ReportService::class)->getGeneralLedgerBranchNodes(
+            (int) $request->input('account_id'),
+            $request->all()
+        );
+
+        $html = view('accounting::admin.reports.partials.general-ledger-branch-fragment', [
+            'nodes' => $nodes,
+        ])->render();
+
+        return response()->json(['html' => $html]);
     }
 
     /**
@@ -66,7 +94,24 @@ class ReportsController extends AccountingAdminController
     public function balanceSheet(Request $request)
     {
         $reportService = app(ReportService::class);
-        $data = $reportService->getBalanceSheet($request->all());
+        $filters = $request->all();
+        $data = $reportService->getBalanceSheet($filters);
+
+        $compareAsOf = trim((string) $request->input('compare_as_of_date', ''));
+        if ($compareAsOf !== '') {
+            $compareFilters = $filters;
+            $compareFilters['as_of_date'] = $compareAsOf;
+            $comparison = $reportService->getBalanceSheet($compareFilters);
+            $data['comparison'] = [
+                'as_of_date' => $comparison['as_of_date'] ?? $compareAsOf,
+                'assets_total' => (float) ($comparison['assets']['total'] ?? 0),
+                'liabilities_total' => (float) ($comparison['liabilities']['total'] ?? 0),
+                'equity_total' => (float) ($comparison['equity']['total'] ?? 0),
+                'retained_earnings' => (float) ($comparison['equity']['retained_earnings'] ?? 0),
+                'equation_total' => (float) ($comparison['equation']['liabilities_plus_equity'] ?? 0),
+                'is_balanced' => (bool) ($comparison['equation']['is_balanced'] ?? false),
+            ];
+        }
 
         return $this->renderReport('balance-sheet', $data);
     }
@@ -77,7 +122,35 @@ class ReportsController extends AccountingAdminController
     public function incomeStatement(Request $request)
     {
         $reportService = app(ReportService::class);
-        $data = $reportService->getIncomeStatement($request->all());
+        $filters = $request->all();
+        $data = $reportService->getIncomeStatement($filters);
+
+        $compareFrom = trim((string) $request->input('compare_from_date', ''));
+        $compareTo = trim((string) $request->input('compare_to_date', ''));
+        if ($compareFrom !== '' || $compareTo !== '') {
+            $compareFilters = $filters;
+            if ($compareFrom !== '') {
+                $compareFilters['from_date'] = $compareFrom;
+                $compareFilters['start_date'] = $compareFrom;
+            }
+            if ($compareTo !== '') {
+                $compareFilters['to_date'] = $compareTo;
+                $compareFilters['end_date'] = $compareTo;
+            }
+
+            $comparison = $reportService->getIncomeStatement($compareFilters);
+            $data['comparison'] = [
+                'period' => $comparison['period'] ?? null,
+                'revenue_total' => (float) ($comparison['revenue']['total'] ?? 0),
+                'cost_of_goods_sold' => (float) ($comparison['cost_of_goods_sold'] ?? 0),
+                'gross_profit' => (float) ($comparison['gross_profit'] ?? 0),
+                'operating_expenses_total' => (float) ($comparison['operating_expenses']['total'] ?? 0),
+                'operating_income' => (float) ($comparison['operating_income'] ?? 0),
+                'income_before_tax' => (float) ($comparison['income_before_tax'] ?? 0),
+                'income_tax_expense' => (float) ($comparison['income_tax_expense'] ?? 0),
+                'net_income' => (float) ($comparison['net_income'] ?? 0),
+            ];
+        }
 
         return $this->renderReport('income-statement', $data);
     }
@@ -99,6 +172,142 @@ class ReportsController extends AccountingAdminController
         $data = $reportService->getCashFlow($request->all());
 
         return $this->renderReport('cash-flow', $data);
+    }
+
+    public function employeeLoanBalances(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getEmployeeLoanBalances($request->all());
+
+        return $this->renderReport('employee-loan-balances', $data);
+    }
+
+    public function employeeLoanInstallmentsDue(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getEmployeeLoanInstallmentsDue($request->all());
+
+        return $this->renderReport('employee-loan-installments-due', $data);
+    }
+
+    public function employeeContracts(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getEmployeeContracts($request->all());
+
+        return $this->renderReport('employee-contracts', $data);
+    }
+
+    public function attendanceMonthlySummary(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getAttendanceMonthlySummary($request->all());
+
+        return $this->renderReport('attendance-monthly-summary', $data);
+    }
+
+    public function attendanceOvertimeDetail(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getAttendanceOvertimeDetail($request->all());
+
+        return $this->renderReport('attendance-overtime-detail', $data);
+    }
+
+    public function attendanceLeaveAbsence(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getAttendanceLeaveAbsence($request->all());
+
+        return $this->renderReport('attendance-leave-absence', $data);
+    }
+
+    public function attendanceTerminationSettlement(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getAttendanceTerminationSettlement($request->all());
+
+        return $this->renderReport('attendance-termination-settlement', $data);
+    }
+
+    public function attendancePayrollReconciliation(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getAttendancePayrollReconciliation($request->all());
+
+        return $this->renderReport('attendance-payroll-reconciliation', $data);
+    }
+
+    public function insuranceMonthly(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getInsuranceMonthlyReport($request->all());
+
+        return $this->renderReport('insurance-monthly', $data);
+    }
+
+    public function insuranceMonthlyExportPdf(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getInsuranceMonthlyReport($request->all());
+        if (! empty($data['error'])) {
+            return redirect()
+                ->route('admin.accounting.reports.insurance-monthly', $request->query())
+                ->with('warning', (string) $data['error']);
+        }
+
+        $html = view('accounting::admin.reports.pdf.insurance-monthly', ['data' => $data])->render();
+        $filename = 'insurance-monthly-'.now()->format('Ymd-His').'.pdf';
+
+        if (class_exists(\App\Services\Pdf\SitePdfService::class)) {
+            return app(\App\Services\Pdf\SitePdfService::class)->downloadHtml($html, $filename, ['rtl' => true]);
+        }
+
+        return response()->view('accounting::admin.reports.pdf.bank-statement-html-fallback', [
+            'data' => $data,
+            'title' => $filename,
+        ]);
+    }
+
+    public function insuranceMonthlyExportExcel(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getInsuranceMonthlyReport($request->all());
+        if (! empty($data['error'])) {
+            return redirect()
+                ->route('admin.accounting.reports.insurance-monthly', $request->query())
+                ->with('warning', (string) $data['error']);
+        }
+
+        $headings = [
+            trans('accounting::accounting.reports.insurance_monthly.columns.posted_at'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.source'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.reference'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.document_number'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.description'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.accrual_employee'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.accrual_employer'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.accrual_total'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.payment_total'),
+            trans('accounting::accounting.reports.insurance_monthly.columns.net_change'),
+        ];
+        $rows = $reportService->insuranceMonthlyExcelRows((array) ($data['source_rows'] ?? []));
+        $baseName = 'insurance-monthly-'.now()->format('Ymd-His');
+
+        $sheet = [
+            'title' => trans('accounting::accounting.reports.insurance_monthly.title'),
+            'headings' => $headings,
+            'rows' => $rows,
+            'currency_columns' => ['F', 'G', 'H', 'I', 'J'],
+            'freeze_pane' => 'A2',
+            'rtl' => true,
+        ];
+
+        if (class_exists(\App\Services\Excel\ReportExportService::class)) {
+            return app(\App\Services\Excel\ReportExportService::class)->downloadReport($baseName, [$sheet]);
+        }
+
+        return $this->bankStatementCsvDownload($baseName, $headings, $rows);
     }
 
     // ==========================================
@@ -241,6 +450,87 @@ class ReportsController extends AccountingAdminController
         return $this->renderReport('aging-analysis-ap', $data);
     }
 
+    // ==========================================
+    // گزارش‌های Party-Based
+    // ==========================================
+
+    /**
+     * گزارش مانده parties
+     */
+    public function partyBalances(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getPartyBalances($request->all());
+
+        return $this->renderReport('party-balances', $data);
+    }
+
+    /**
+     * گردش حساب یک party
+     */
+    public function partyStatement(Request $request, int $partyId)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getPartyStatement($partyId, $request->all());
+
+        return $this->renderReport('party-statement', $data);
+    }
+
+    /**
+     * گزارش سودآوری یک party
+     */
+    public function partyProfitability(Request $request, int $partyId)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getPartyProfitability($partyId, $request->all());
+
+        return $this->renderReport('party-profitability', $data);
+    }
+
+    /**
+     * گزارش سودآوری همه parties
+     */
+    public function allPartiesProfitability(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getAllPartiesProfitability($request->all());
+
+        return $this->renderReport('all-parties-profitability', $data);
+    }
+
+    /**
+     * گزارش سودآوری یک customer از یک supplier
+     */
+    public function customerSupplierProfitability(Request $request, int $customerId, int $supplierId)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getCustomerSupplierProfitability($customerId, $supplierId, $request->all());
+
+        return $this->renderReport('customer-supplier-profitability', $data);
+    }
+
+    /**
+     * لیست parties که هم customer هستن هم supplier
+     */
+    public function partiesWithBothRoles(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getPartiesWithBothRoles($request->all());
+
+        return $this->renderReport('parties-with-both-roles', $data);
+    }
+
+    /**
+     * تحلیل سررسید برای یک party
+     */
+    public function partyAgingAnalysis(Request $request, int $partyId)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getPartyAgingAnalysis($partyId, $request->all());
+
+        return $this->renderReport('party-aging-analysis', $data);
+    }
+
     /**
      * تاریخچه سفارش‌های خرید
      */
@@ -309,6 +599,127 @@ class ReportsController extends AccountingAdminController
         $data = $reportService->getBankTransactions($request->all());
 
         return $this->renderReport('bank-transactions', $data);
+    }
+
+    /**
+     * خروجی PDF صورتحساب بانکی (هم‌راستا با SitePdfService در اپ در صورت وجود)
+     */
+    public function bankTransactionsExportPdf(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getBankTransactions($request->all());
+
+        $html = view('accounting::admin.reports.pdf.bank-statement', ['data' => $data])->render();
+        $mode = (string) ($data['mode'] ?? 'detail');
+        $bankId = (int) ($data['bank_id'] ?? 0);
+        $filename = 'bank-statement-'.$mode.'-'.$bankId.'-'.now()->format('Ymd-His').'.pdf';
+
+        if (class_exists(\App\Services\Pdf\SitePdfService::class)) {
+            return app(\App\Services\Pdf\SitePdfService::class)->downloadHtml($html, $filename, ['rtl' => true]);
+        }
+
+        return response()->view('accounting::admin.reports.pdf.bank-statement-html-fallback', [
+            'data' => $data,
+            'title' => $filename,
+        ]);
+    }
+
+    /**
+     * خروجی Excel صورتحساب بانکی (هم‌راستا با ReportExportService در اپ در صورت وجود)
+     */
+    public function bankTransactionsExportExcel(Request $request)
+    {
+        $reportService = app(ReportService::class);
+        $data = $reportService->getBankTransactions($request->all());
+
+        if (! empty($data['error'])) {
+            return redirect()
+                ->route('admin.accounting.reports.bank-transactions', $request->query())
+                ->with('warning', $data['error']);
+        }
+
+        $mode = (string) ($data['mode'] ?? 'detail');
+        $bankId = (int) ($data['bank_id'] ?? 0);
+        $bankName = isset($data['bank']) ? (string) $data['bank']->name : 'bank';
+        $baseName = 'bank-statement-'.$mode.'-'.$bankId.'-'.now()->format('Ymd-His');
+
+        $headings = [
+            trans('accounting::accounting.reports.bank_statement.col_date'),
+            trans('accounting::accounting.reports.bank_statement.col_document'),
+            trans('accounting::accounting.reports.bank_statement.col_type'),
+            trans('accounting::accounting.reports.bank_statement.col_description'),
+            trans('accounting::accounting.reports.bank_statement.col_debit'),
+            trans('accounting::accounting.reports.bank_statement.col_credit'),
+            trans('accounting::accounting.reports.bank_statement.col_balance'),
+        ];
+
+        if ($mode === 'summary') {
+            $rows = $reportService->bankStatementSummaryExcelRows((array) ($data['summary_rows'] ?? []));
+        } else {
+            $rows = $reportService->bankStatementDetailExcelRows((array) ($data['detail_rows'] ?? []));
+        }
+
+        $sheet = [
+            'title' => $bankName.' — '.trans('accounting::accounting.reports.bank_statement.title'),
+            'headings' => $headings,
+            'rows' => $rows,
+            'currency_columns' => ['E', 'F', 'G'],
+            'freeze_pane' => 'A2',
+            'rtl' => true,
+        ];
+
+        if (class_exists(\App\Services\Excel\ReportExportService::class)) {
+            return app(\App\Services\Excel\ReportExportService::class)->downloadReport($baseName, [$sheet]);
+        }
+
+        return $this->bankStatementCsvDownload($baseName, $headings, $rows);
+    }
+
+    /**
+     * خطوط دفتر یک سند (برای AJAX گزارش بانک)
+     */
+    public function bankStatementDocumentLines(Request $request, int $document): JsonResponse
+    {
+        $payload = app(ReportService::class)->getBankStatementDocumentLines($document);
+        if ($payload['document'] === null) {
+            return response()->json(['ok' => false, 'message' => 'Not found'], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'document' => [
+                'id' => $payload['document']->id,
+                'document_number' => $payload['document']->document_number,
+                'document_type' => $payload['document']->document_type,
+                'description' => $payload['document']->description,
+            ],
+            'lines' => $payload['lines'],
+        ]);
+    }
+
+    /**
+     * خروجی ساده CSV وقتی ReportExportService در اپ نیست
+     *
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    protected function bankStatementCsvDownload(string $baseName, array $headings, array $rows): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $fn = $baseName.'.csv';
+
+        return response()->streamDownload(function () use ($headings, $rows): void {
+            $out = fopen('php://output', 'w');
+            if ($out === false) {
+                return;
+            }
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $headings);
+            foreach ($rows as $row) {
+                fputcsv($out, $row);
+            }
+            fclose($out);
+        }, $fn, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     /**
@@ -862,12 +1273,39 @@ class ReportsController extends AccountingAdminController
      */
     protected function renderReport(string $template, array $data)
     {
-        return $this->view->usePackageNamespace('accounting')
+        // تشخیص view مناسب بر اساس نوع گزارش
+        $viewTemplate = 'reports.table-report'; // default
+        
+        if ($template === 'balance-sheet') {
+            $viewTemplate = 'reports.balance-sheet';
+        } elseif ($template === 'income-statement' || $template === 'profit-loss') {
+            $viewTemplate = 'reports.income-statement';
+        } elseif ($template === 'bank-transactions') {
+            $viewTemplate = 'reports.bank-transactions';
+        } elseif ($template === 'cash-transactions') {
+            $viewTemplate = 'reports.cash-transactions';
+        } elseif ($template === 'insurance-monthly') {
+            $viewTemplate = 'reports.insurance_monthly';
+        }
+        
+        $plugins = AccountingDateUi::calendarMode() === AccountingDateUi::MODE_JALALI
+            ? ['persian-datepicker']
+            : [];
+
+        $this->view->usePackageNamespace('accounting')
             ->setTheme('admin')
-            ->setTpl("reports.{$template}")
+            ->setTpl($viewTemplate)
             ->withCss('vendor/accounting/admin/css/reports.css', true)
-            ->withJs('vendor/accounting/admin/js/reports.js', true)
-            ->with(['data' => $data]);
+            ->withPlugins($plugins)
+            ->withJs('vendor/accounting/admin/js/accounting-date-ui.js', true);
+
+        if (! empty($data['lazy_branch'] ?? false)) {
+            $this->view->withJs('vendor/accounting/admin/js/general-ledger-tree.js', true);
+        }
+
+        $this->view->withVariables(['data' => $data]);
+
+        return $this->view();
     }
 
     // متدهای abstract

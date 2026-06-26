@@ -1,0 +1,26 @@
+/* جدول سطرهای سند دستی — عرض ستون‌ها (بدون استایل اینلاین در Blade) */
+#mj-lines-table .mj-th-num,
+#mj-lines-table .mj-td-num {
+    width: 3rem;
+}
+
+#mj-lines-table .mj-th-amount,
+#mj-lines-table .mj-td-amount {
+    width: 9rem;
+}
+
+#mj-lines-table .mj-th-actions,
+#mj-lines-table .mj-td-actions {
+    width: 6rem;
+}
+
+/* جدول فقط‌خواندنی سطرها (سند غیر پیش‌نویس) */
+#mj-lines-readonly-table .mj-th-num,
+#mj-lines-readonly-table .mj-td-num {
+    width: 3rem;
+}
+
+#mj-lines-readonly-table .mj-th-amount,
+#mj-lines-readonly-table .mj-td-amount {
+    width: 9rem;
+}

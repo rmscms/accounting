@@ -29,6 +29,7 @@ class Wallet extends Model
     const TYPE_CUSTOMER = 'customer';
     const TYPE_SUPPLIER = 'supplier';
     const TYPE_EMPLOYEE = 'employee';
+    const TYPE_TREASURY = 'treasury';
 
     public function account(): BelongsTo
     {
@@ -48,5 +49,19 @@ class Wallet extends Model
     public function scopeActive($query)
     {
         return $query->where('active', true);
+    }
+
+    public function scopePartyWallets($query)
+    {
+        return $query->whereIn('wallet_type', [
+            self::TYPE_CUSTOMER,
+            self::TYPE_SUPPLIER,
+            self::TYPE_EMPLOYEE,
+        ]);
+    }
+
+    public function scopeTreasury($query)
+    {
+        return $query->where('wallet_type', self::TYPE_TREASURY);
     }
 }

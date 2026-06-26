@@ -14,10 +14,17 @@ class CurrenciesSeeder extends Seeder
     {
         $currencies = [
             [
+                'code' => 'IRT',
+                'name' => 'تومان ایران',
+                'symbol' => 'تومان',
+                'is_base' => true,
+                'active' => true,
+            ],
+            [
                 'code' => 'IRR',
                 'name' => 'ریال ایران',
                 'symbol' => 'ریال',
-                'is_base' => true,
+                'is_base' => false,
                 'active' => true,
             ],
             [
@@ -48,12 +55,31 @@ class CurrenciesSeeder extends Seeder
                 'is_base' => false,
                 'active' => true,
             ],
+            [
+                'code' => 'CNY',
+                'name' => 'یوان چین',
+                'symbol' => '¥',
+                'is_base' => false,
+                'active' => true,
+            ],
         ];
 
         foreach ($currencies as $currency) {
-            Currency::create($currency);
+            Currency::query()->updateOrCreate(
+                ['code' => $currency['code']],
+                [
+                    'name' => $currency['name'],
+                    'symbol' => $currency['symbol'],
+                    'is_base' => (bool) $currency['is_base'],
+                    'active' => (bool) $currency['active'],
+                ]
+            );
         }
 
-        $this->command->info('✅ ارزهای پیش‌فرض با موفقیت ایجاد شد.');
+        // در راه‌اندازی اولیه، فقط IRT باید ارز پایه باشد.
+        Currency::query()->where('code', '!=', 'IRT')->update(['is_base' => false]);
+        Currency::query()->where('code', 'IRT')->update(['is_base' => true, 'active' => true]);
+
+        $this->command->info('✅ ارزهای پیش‌فرض بررسی و ایجاد شدند.');
     }
 }

@@ -28,11 +28,19 @@ class COGSService
     {
         DB::beginTransaction();
         try {
+            // اگر source_supplier_id یا source_supplier_invoice_id در data نیست،
+            // باید از inventory tracking شناسایی شود
+            // این بخش باید با inventory adapter یکپارچه شود
+            // فعلاً فقط داده‌های ارسالی را ثبت می‌کنیم
+            
+            // ذخیره store_id برای استفاده در recordInLedger
+            $this->storeId = $data['store_id'] ?? 0;
+            
             // ایجاد رکورد COGS
             $costEntry = CostEntry::create($data);
 
             // ثبت در دفتر کل
-            $this->recordInLedger($costEntry);
+            $this->recordInLedger($costEntry, $data);
 
             DB::commit();
             return $costEntry;
@@ -45,18 +53,22 @@ class COGSService
     /**
      * ثبت COGS در دفتر کل
      */
-    protected function recordInLedger(CostEntry $costEntry): void
+    protected function recordInLedger(CostEntry $costEntry, array $data = []): void
     {
+        // استفاده از total_cost به جای cost_amount (مطابق با migration)
+        $costAmount = $costEntry->total_cost ?? 0;
+        $storeId = $data['store_id'] ?? 0; // از data که به recordCOGS ارسال شده
+        
         // ایجاد سند حسابداری
         $document = $this->documentService->createDocument([
             'document_type' => 'cogs',
-            'store_id' => $costEntry->store_id,
+            'store_id' => $storeId,
             'fiscal_year_id' => config('accounting.current_fiscal_year_id'),
             'reference_type' => CostEntry::class,
             'reference_id' => $costEntry->id,
             'description' => "بهای تمام شده - {$costEntry->reference_type}",
-            'total_debit' => $costEntry->cost_amount,
-            'total_credit' => $costEntry->cost_amount,
+            'total_debit' => $costAmount,
+            'total_credit' => $costAmount,
         ]);
 
         // آرتیکل بدهکار: بهای تمام شده کالای فروش رفته
@@ -65,12 +77,12 @@ class COGSService
             'event_source' => 'system',
             'source_reference_type' => CostEntry::class,
             'source_reference_id' => $costEntry->id,
-            'store_id' => $costEntry->store_id,
+            'store_id' => $storeId,
             'account_id' => config('accounting.accounts.cogs'),
-            'currency_code' => 'IRR',
-            'debit_amount' => $costEntry->cost_amount,
+            'currency_code' => $costEntry->currency_code ?? 'IRR',
+            'debit_amount' => $costAmount,
             'credit_amount' => 0,
-            'fx_rate_to_irr' => 1,
+            'fx_rate_to_base' => $costEntry->fx_rate ?? 1,
             'accounting_document_id' => $document->id,
             'description' => "بهای تمام شده",
         ]);
@@ -81,12 +93,12 @@ class COGSService
             'event_source' => 'system',
             'source_reference_type' => CostEntry::class,
             'source_reference_id' => $costEntry->id,
-            'store_id' => $costEntry->store_id,
+            'store_id' => $storeId,
             'account_id' => config('accounting.accounts.inventory'),
-            'currency_code' => 'IRR',
+            'currency_code' => $costEntry->currency_code ?? 'IRR',
             'debit_amount' => 0,
-            'credit_amount' => $costEntry->cost_amount,
-            'fx_rate_to_irr' => 1,
+            'credit_amount' => $costAmount,
+            'fx_rate_to_base' => $costEntry->fx_rate ?? 1,
             'accounting_document_id' => $document->id,
             'description' => "کاهش موجودی کالا",
         ]);
@@ -123,17 +135,15 @@ class COGSService
         $query = CostEntry::query();
 
         if ($fromDate) {
-            $query->whereDate('cost_date', '>=', $fromDate);
+            $query->whereDate('created_at', '>=', $fromDate);
         }
 
         if ($toDate) {
-            $query->whereDate('cost_date', '<=', $toDate);
+            $query->whereDate('created_at', '<=', $toDate);
         }
 
-        if ($storeId) {
-            $query->where('store_id', $storeId);
-        }
+        // Note: store_id در cost_entries وجود ندارد، اگر نیاز باشد باید از reference_type/reference_id استفاده کرد
 
-        return $query->sum('cost_amount');
+        return $query->sum('total_cost');
     }
 }

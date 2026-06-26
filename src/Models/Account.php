@@ -12,6 +12,8 @@ class Account extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static ?string $resolvedDefaultCurrencyCode = null;
+
     protected $fillable = [
         'code',
         'name',
@@ -41,6 +43,13 @@ class Account extends Model
     const LEVEL_GENERAL = 1;      // کل
     const LEVEL_SUBSIDIARY = 2;   // معین
     const LEVEL_ANALYTICAL = 3;   // تفصیلی
+
+    protected static function booted(): void
+    {
+        static::saving(static function (self $account): void {
+            $account->currency_code = static::resolveCurrencyCodeForSave($account);
+        });
+    }
 
     /**
      * Parent Account
@@ -155,5 +164,44 @@ class Account extends Model
         }
 
         return implode(' > ', $path);
+    }
+
+    protected static function resolveCurrencyCodeForSave(self $account): string
+    {
+        $direct = static::normalizeCurrencyCode($account->currency_code);
+        if ($direct !== '') {
+            return $direct;
+        }
+
+        if (! empty($account->parent_id)) {
+            $parentCode = static::normalizeCurrencyCode(
+                static::query()->whereKey((int) $account->parent_id)->value('currency_code')
+            );
+            if ($parentCode !== '') {
+                return $parentCode;
+            }
+        }
+
+        return static::defaultCurrencyCode();
+    }
+
+    protected static function defaultCurrencyCode(): string
+    {
+        if (static::$resolvedDefaultCurrencyCode !== null) {
+            return static::$resolvedDefaultCurrencyCode;
+        }
+
+        static::$resolvedDefaultCurrencyCode = static::normalizeCurrencyCode(
+            Currency::resolveBaseCurrencyCode(
+                (string) config('accounting.base_currency', config('accounting.default_currency', 'IRR'))
+            )
+        );
+
+        return static::$resolvedDefaultCurrencyCode;
+    }
+
+    protected static function normalizeCurrencyCode(mixed $value): string
+    {
+        return strtoupper(trim((string) $value));
     }
 }

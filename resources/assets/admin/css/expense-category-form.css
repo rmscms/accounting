@@ -1,0 +1,16 @@
+/* Expense category form — Ajax code feedback */
+[data-expense-category-code-input].is-valid {
+    border-color: var(--bs-success, #198754);
+}
+
+[data-expense-category-code-input].is-invalid {
+    border-color: var(--bs-danger, #dc3545);
+}
+
+.collapse-caret {
+    transition: transform 0.2s ease;
+}
+
+[aria-expanded="true"] .collapse-caret {
+    transform: rotate(180deg);
+}

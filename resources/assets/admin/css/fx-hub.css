@@ -1,0 +1,39 @@
+.fx-hub-page .card {
+    border-radius: 0.625rem;
+}
+
+.fx-hub-page .card-body {
+    padding: 1rem 1.1rem;
+}
+
+.fx-hub-card .card-header {
+    background: rgba(13, 110, 253, 0.06);
+    border-bottom: 1px solid rgba(13, 110, 253, 0.12);
+    font-size: 0.92rem;
+}
+
+.fx-hub-page .form-label {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: #344054;
+}
+
+.fx-hub-page .form-text {
+    font-size: 0.78rem;
+    color: #667085;
+}
+
+.fx-hub-page .form-control,
+.fx-hub-page .form-select {
+    border-radius: 0.45rem;
+}
+
+.fx-hub-page [data-field="fee_amount"] {
+    background-color: #f8fafc;
+    font-weight: 600;
+}
+
+.fx-hub-page [data-role="fx-mismatch"] {
+    font-size: 0.8rem;
+}
+

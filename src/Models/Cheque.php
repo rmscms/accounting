@@ -10,9 +10,20 @@ class Cheque extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::creating(function (Cheque $cheque) {
+            if ($cheque->currency_code === null || $cheque->currency_code === '') {
+                $cheque->currency_code = Currency::resolveBaseCurrencyCode('IRR');
+            }
+        });
+    }
+
     protected $fillable = [
         'cheque_number',
         'bank_id',
+        'party_id',
+        'chequebook_id',
         'cheque_type',
         'amount',
         'currency_code',
@@ -27,7 +38,11 @@ class Cheque extends Model
         'bounced_at',
         'bounce_reason',
         'payment_id',
+        'accounting_document_id',
+        'source_type',
+        'source_id',
         'notes',
+        'meta_json',
         'image',
     ];
 
@@ -37,6 +52,7 @@ class Cheque extends Model
         'due_date' => 'date',
         'cashed_at' => 'datetime',
         'bounced_at' => 'datetime',
+        'meta_json' => 'array',
     ];
 
     const TYPE_RECEIVED = 'received';
@@ -51,6 +67,21 @@ class Cheque extends Model
     public function bank(): BelongsTo
     {
         return $this->belongsTo(Bank::class);
+    }
+
+    public function party(): BelongsTo
+    {
+        return $this->belongsTo(Party::class);
+    }
+
+    public function chequebook(): BelongsTo
+    {
+        return $this->belongsTo(Chequebook::class);
+    }
+
+    public function accountingDocument(): BelongsTo
+    {
+        return $this->belongsTo(AccountingDocument::class);
     }
 
     public function currency(): BelongsTo

@@ -11,7 +11,7 @@ use RMS\Accounting\Http\Controllers\ServiceApi;
 */
 
 Route::prefix('api/service/accounting')
-    ->middleware(['api', 'service-api-auth'])
+    ->middleware(['api', 'service-api-auth', 'throttle:180,1', 'api.idempotency'])
     ->name('api.service.accounting.')
     ->group(function () {
         
@@ -38,4 +38,40 @@ Route::prefix('api/service/accounting')
         
         // Health Check
         Route::get('health', fn() => response()->json(['status' => 'ok', 'service' => 'accounting']));
+
+        // ========================================
+        // Credit Notes & Returns (NEW)
+        // ========================================
+        
+        // ثبت اعتبار برگشتی (از shop)
+        Route::post('sales/credit-note', [ServiceApi\SalesApiController::class, 'createCreditNote']);
+        Route::post('sales/credit-note/{id}/issue', [ServiceApi\SalesApiController::class, 'issueCreditNote']);
+        Route::post('sales/credit-note/{id}/apply', [ServiceApi\SalesApiController::class, 'applyCreditNote']);
+        
+        // ثبت یادداشت بدهکار (از inventory)
+        Route::post('purchases/debit-note', [ServiceApi\PurchasesApiController::class, 'createDebitNote']);
+        Route::post('purchases/debit-note/{id}/issue', [ServiceApi\PurchasesApiController::class, 'issueDebitNote']);
+        Route::post('purchases/debit-note/{id}/apply', [ServiceApi\PurchasesApiController::class, 'applyDebitNote']);
+        
+        // ========================================
+        // Refunds (NEW)
+        // ========================================
+        
+        // بازگشت وجه به مشتری (از shop)
+        Route::post('sales/refund', [ServiceApi\SalesApiController::class, 'processRefund']);
+        
+        // دریافت بازگشت از تامین‌کننده (از inventory)
+        Route::post('purchases/refund', [ServiceApi\PurchasesApiController::class, 'receiveRefund']);
+        
+        // ========================================
+        // Advance Payments (NEW)
+        // ========================================
+        
+        // پیش دریافت از مشتری (از shop)
+        Route::post('sales/advance', [ServiceApi\SalesApiController::class, 'receiveAdvance']);
+        Route::post('sales/advance/{id}/apply', [ServiceApi\SalesApiController::class, 'applyAdvance']);
+        
+        // پیش پرداخت به تامین‌کننده (از inventory)
+        Route::post('purchases/advance', [ServiceApi\PurchasesApiController::class, 'payAdvance']);
+        Route::post('purchases/advance/{id}/apply', [ServiceApi\PurchasesApiController::class, 'applyAdvance']);
     });

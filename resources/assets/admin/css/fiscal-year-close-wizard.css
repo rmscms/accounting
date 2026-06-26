@@ -1,0 +1,69 @@
+.wizard {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #fff;
+}
+
+.wizard .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.wizard .steps li {
+    display: inline-flex;
+    align-items: center;
+}
+
+.wizard .steps li a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    background: #f8f9fa;
+}
+
+.wizard .steps li.current a {
+    color: #0d6efd;
+    border-color: #0d6efd;
+    background: #e8f1ff;
+}
+
+.wizard .steps li.done a {
+    color: #198754;
+    border-color: #198754;
+    background: #eaf7ef;
+}
+
+.wizard .steps .number {
+    width: 1.35rem;
+    height: 1.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+#fiscal-close-wizard .card.h-100 .card-body {
+    min-height: 175px;
+}
+
+#fiscal-close-wizard .js-step-status.text-success {
+    font-weight: 600;
+}
+
+#fiscal-close-wizard .js-step-status.text-danger {
+    font-weight: 600;
+}

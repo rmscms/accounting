@@ -14,25 +14,31 @@ class TaxRatesSeeder extends Seeder
     {
         $taxRates = [
             [
+                'code' => 'VAT-9',
                 'name' => 'مالیات بر ارزش افزوده (VAT)',
                 'rate' => 9.00,
-                'type' => 'vat',
+                'tax_type' => 'vat',
                 'is_default' => true,
                 'active' => true,
             ],
             [
+                'code' => 'EXEMPT',
                 'name' => 'معاف از مالیات',
                 'rate' => 0.00,
-                'type' => 'exempt',
+                'tax_type' => 'other',
                 'is_default' => false,
                 'active' => true,
             ],
         ];
 
         foreach ($taxRates as $taxRate) {
-            TaxRate::create($taxRate);
+            // اگر نرخ مالیات با این کد وجود داشت، skip کن
+            $existing = TaxRate::where('code', $taxRate['code'])->first();
+            if (!$existing) {
+                TaxRate::create($taxRate);
+            }
         }
 
-        $this->command->info('✅ نرخ‌های مالیات پیش‌فرض با موفقیت ایجاد شد.');
+        $this->command->info('✅ نرخ‌های مالیات پیش‌فرض بررسی و ایجاد شدند.');
     }
 }

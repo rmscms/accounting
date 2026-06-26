@@ -14,18 +14,28 @@ class CustomersSimulator extends BaseSimulator
 
     public function simulate(): void
     {
-        $this->faker = Faker::create('fa_IR');
         $count = $this->option('customers', 2000);
+        
+        // چک کردن تعداد مشتریان موجود
+        $existingCount = DB::table('customers')->count();
+        
+        if ($existingCount >= $count) {
+            $this->success("مشتریان: {$existingCount} مشتری موجود (skip)");
+            return;
+        }
+        
+        $this->faker = Faker::create('fa_IR');
+        $toCreate = $count - $existingCount;
 
-        $this->info("  👥 در حال ایجاد {$count} مشتری...");
+        $this->info("  👥 در حال ایجاد {$toCreate} مشتری جدید...");
 
-        $bar = $this->createProgressBar($count);
+        $bar = $this->createProgressBar($toCreate);
         $bar->start();
 
         // دسته‌بندی مشتریان
-        $vipCount = (int) ($count * 0.10); // 10% VIP
-        $regularCount = (int) ($count * 0.60); // 60% Regular
-        $occasionalCount = $count - $vipCount - $regularCount; // 30% Occasional
+        $vipCount = (int) ($toCreate * 0.10); // 10% VIP
+        $regularCount = (int) ($toCreate * 0.60); // 60% Regular
+        $occasionalCount = $toCreate - $vipCount - $regularCount; // 30% Occasional
 
         $customers = [];
         $id = 1;

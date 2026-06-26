@@ -1,0 +1,92 @@
+/**
+ * دفتر کل - استایل‌های سفارشی
+ */
+
+/* فیلترها */
+.ledger-filters {
+    background: var(--bs-light);
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dark-mode .ledger-filters {
+    background: var(--bs-dark);
+}
+
+/* جدول دفتر کل */
+.ledger-table {
+    font-size: 0.875rem;
+}
+
+.ledger-table thead th {
+    background: var(--bs-primary);
+    color: white;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ledger-table tbody td {
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.ledger-table tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.dark-mode .ledger-table tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+/* مبالغ بدهکار و بستانکار */
+.ledger-debit {
+    color: var(--bs-danger);
+    font-weight: 600;
+}
+
+.ledger-credit {
+    color: var(--bs-success);
+    font-weight: 600;
+}
+
+/* فوتر جدول */
+.ledger-table tfoot tr {
+    background: var(--bs-light);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.dark-mode .ledger-table tfoot tr {
+    background: var(--bs-dark);
+}
+
+.ledger-table tfoot td {
+    padding: 1rem 0.5rem;
+    border: 2px solid var(--bs-primary);
+}
+
+/* دکمه‌های فیلتر */
+.btn-filter-ledger {
+    min-width: 100px;
+}
+
+.btn-reset-filter {
+    min-width: 100px;
+}
+
+/* نمایش responsive */
+@media (max-width: 768px) {
+    .ledger-table {
+        font-size: 0.75rem;
+    }
+    
+    .ledger-table thead th,
+    .ledger-table tbody td {
+        padding: 0.5rem 0.25rem;
+    }
+}

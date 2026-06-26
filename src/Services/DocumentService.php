@@ -6,6 +6,7 @@ use RMS\Accounting\Models\AccountingDocument;
 use RMS\Accounting\Models\FiscalYear;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RMS\Accounting\Support\InteractsWithAuditActor;
 
 /**
  * سرویس مدیریت اسناد حسابداری
@@ -15,11 +16,18 @@ use Illuminate\Support\Str;
  */
 class DocumentService
 {
-    protected LedgerService $ledgerService;
+    use InteractsWithAuditActor;
 
-    public function __construct(LedgerService $ledgerService)
+    protected LedgerService $ledgerService;
+    protected TreasuryBalanceCacheSyncService $treasuryBalanceCacheSyncService;
+
+    public function __construct(
+        LedgerService $ledgerService,
+        TreasuryBalanceCacheSyncService $treasuryBalanceCacheSyncService
+    )
     {
         $this->ledgerService = $ledgerService;
+        $this->treasuryBalanceCacheSyncService = $treasuryBalanceCacheSyncService;
     }
 
     /**
@@ -29,7 +37,7 @@ class DocumentService
     {
         $data['document_number'] = $data['document_number'] ?? $this->generateDocumentNumber($data['document_type']);
         $data['status'] = $data['status'] ?? 'draft';
-        $data['created_by_user_id'] = $data['created_by_user_id'] ?? auth()->id();
+        $data = $this->stampAudit($data, 'accounting_documents', 'created');
 
         return AccountingDocument::create($data);
     }
@@ -52,10 +60,14 @@ class DocumentService
 
         DB::beginTransaction();
         try {
-            $document->update([
+            $postPayload = [
                 'status' => 'posted',
                 'posted_at' => now(),
-            ]);
+            ];
+            $postPayload = $this->stampAudit($postPayload, 'accounting_documents', 'posted');
+
+            $document->update($postPayload);
+            $this->treasuryBalanceCacheSyncService->syncForDocument((int) $document->id);
 
             DB::commit();
             return true;
@@ -84,7 +96,7 @@ class DocumentService
         try {
             // ایجاد سند معکوس
             $reversalDocument = $this->createDocument([
-                'document_type' => 'reversal',
+                'document_type' => AccountingDocument::TYPE_CORRECTION,
                 'store_id' => $originalDocument->store_id,
                 'fiscal_year_id' => $originalDocument->fiscal_year_id,
                 'reference_type' => get_class($originalDocument),
@@ -95,7 +107,7 @@ class DocumentService
             ]);
 
             // ایجاد آرتیکل‌های معکوس
-            foreach ($originalDocument->ledgers as $ledger) {
+            foreach ($originalDocument->ledgerEntries as $ledger) {
                 $this->ledgerService->recordEntry([
                     'event_type' => 'document_reversal',
                     'event_source' => 'manual',
@@ -104,7 +116,7 @@ class DocumentService
                     'currency_code' => $ledger->currency_code,
                     'debit_amount' => $ledger->credit_amount, // معکوس
                     'credit_amount' => $ledger->debit_amount, // معکوس
-                    'fx_rate_to_irr' => $ledger->fx_rate_to_irr,
+                    'fx_rate_to_base' => $ledger->fx_rate_to_base,
                     'accounting_document_id' => $reversalDocument->id,
                     'description' => "برگشت: {$ledger->description}",
                 ]);
@@ -115,6 +127,7 @@ class DocumentService
 
             // بروزرسانی سند اصلی
             $originalDocument->update([
+                'status' => AccountingDocument::STATUS_REVERSED,
                 'reversed_by_document_id' => $reversalDocument->id,
             ]);
 
