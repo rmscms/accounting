@@ -42,6 +42,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#inventory-tab">
+                            <i class="ph-warehouse me-1"></i>
+                            {{ trans('accounting::accounting.settings.tabs.inventory') }}
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" data-bs-toggle="tab" href="#purchase-forms-tab">
                             <i class="ph-shopping-cart-simple me-1"></i>
                             {{ trans('accounting::accounting.settings.tabs.purchase_forms') }}
@@ -689,6 +695,37 @@
                         ])
                     </div>
 
+                    <div class="tab-pane fade" id="inventory-tab">
+                        <h5 class="text-primary mb-3">
+                            <i class="ph-warehouse me-1"></i>
+                            {{ trans('accounting::accounting.settings.sections.inventory') }}
+                        </h5>
+
+                        <div class="alert alert-info">
+                            <i class="ph-info me-2"></i>
+                            {{ trans('accounting::accounting.settings.hints.inventory_account_code') }}
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">{{ trans('accounting::accounting.settings.fields.inventory_account_code') }}</label>
+                                <select class="form-select enhanced-select @error('inventory_account_code') is-invalid @enderror"
+                                        name="inventory_account_code"
+                                        data-account-setting-tag="assets.inventory">
+                                    <option value="">{{ trans('accounting::accounting.settings.hints.treasury_parent_account_placeholder') }}</option>
+                                    @foreach($accounts->where('account_type', 'asset') as $account)
+                                    <option value="{{ $account->code }}"
+                                            {{ old('inventory_account_code', $settings['inventory_account_code'] ?? '') == $account->code ? 'selected' : '' }}>
+                                        {{ $account->code }} - {{ $account->name }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                                @error('inventory_account_code')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                <small class="text-muted">{{ trans('accounting::accounting.settings.hints.inventory_account_code_help') }}</small>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="tab-pane fade" id="purchase-forms-tab">
                         @php
                             $purchaseForms = (array) ($settings['purchase_forms'] ?? []);
@@ -820,6 +857,8 @@
                         trans('accounting::accounting.settings.guide.currency.title') . ': ' .
                             trans('accounting::accounting.settings.guide.currency.items.consistency') . ' ' .
                             trans('accounting::accounting.settings.guide.currency.items.quick_links'),
+                        trans('accounting::accounting.settings.guide.inventory.title') . ': ' .
+                            trans('accounting::accounting.settings.guide.inventory.items.inventory_account'),
                         trans('accounting::accounting.settings.guide.purchase_forms.title') . ': ' .
                             trans('accounting::accounting.settings.guide.purchase_forms.items.scope') . ' ' .
                             trans('accounting::accounting.settings.guide.purchase_forms.items.hidden_fields') . ' ' .

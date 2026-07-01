@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use RMS\Accounting\Support\AuditActor;
+use RMS\Core\Models\Setting;
 
 /**
  * Refund Service
@@ -429,21 +430,25 @@ class RefundService
 
     protected function resolveInventoryFallbackAccountId(): int
     {
-        $inventoryId = config('accounting.accounts.inventory');
-        if ($inventoryId) {
-            return (int) $inventoryId;
+        $configuredCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        if ($configuredCode === '') {
+            throw new \RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => '—',
+            ]));
         }
 
-        return (int) Account::query()
+        $inventoryId = (int) (Account::query()
             ->where('account_type', 'asset')
             ->where('active', true)
-            ->where(function ($q) {
-                $q->where('name', 'like', '%موجودی%')
-                    ->orWhere('name', 'like', '%Inventory%')
-                    ->orWhere('code', 'like', '13%');
-            })
-            ->orderBy('code')
-            ->value('id') ?: $this->getAPAccountId();
+            ->where('code', $configuredCode)
+            ->value('id') ?? 0);
+        if ($inventoryId <= 0) {
+            throw new \RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => $configuredCode,
+            ]));
+        }
+
+        return $inventoryId;
     }
 
     public function allocateNextSupplierRefundNumber(): string

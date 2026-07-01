@@ -453,7 +453,7 @@ class SupplierPaymentsController extends AccountingAdminController implements Ha
             'supplier_invoice_id' => ['nullable', 'integer', 'exists:supplier_invoices,id'],
             'purchase_order_id' => ['nullable', 'integer', 'exists:purchase_orders,id'],
             'amount' => ['required', 'numeric', 'gt:0'],
-            'currency_code' => ['required', 'string', 'size:3', 'exists:currencies,code'],
+            'currency_code' => ['required', 'string', 'max:10', 'exists:currencies,code'],
             'fx_rate_at_payment' => ['required', 'numeric', 'gt:0'],
             'amount_base_at_payment' => ['nullable', 'numeric', 'min:0'],
             'payment_method_id' => ['required', 'integer', 'exists:payment_methods,id'],

@@ -53,7 +53,7 @@ class ForeignExchangeHubController extends AccountingAdminController
             'source_channel_type' => ['required', 'in:bank,cash_box'],
             'source_channel_id' => ['required', 'integer', 'min:1'],
             'target_wallet_id' => ['required', 'integer', 'exists:wallets,id'],
-            'target_currency_code' => ['required', 'string', 'size:3'],
+            'target_currency_code' => ['required', 'string', 'max:10'],
             'target_amount' => ['required', 'numeric', 'min:0.0001'],
             'source_amount_base' => ['required', 'numeric', 'min:0.0001'],
             'fx_rate_to_base' => ['required', 'numeric', 'min:0.000001'],

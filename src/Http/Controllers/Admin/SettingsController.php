@@ -98,6 +98,14 @@ class SettingsController extends AccountingAdminController
             'decimal_places' => 'nullable|integer|min:0|max:4',
             'accounts_receivable_account_code' => 'nullable|string|max:50',
             'accounts_payable_account_code' => 'nullable|string|max:50',
+            'inventory_account_code' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::exists('accounts', 'code')->where(function ($query) {
+                    $query->where('active', true)->where('account_type', Account::TYPE_ASSET);
+                }),
+            ],
             'cheques_receivable_clearing_account_code' => 'nullable|string|max:50',
             'cheques_payable_clearing_account_code' => 'nullable|string|max:50',
             'fx_gain_account_code' => 'nullable|string|max:50',
@@ -194,6 +202,8 @@ class SettingsController extends AccountingAdminController
             'vat_account_receivable_id.exists' => (string) trans('accounting::accounting.settings.validation.account_not_found'),
             'income_tax_expense_account_id.exists' => (string) trans('accounting::accounting.settings.validation.account_not_found'),
             'income_tax_payable_account_id.exists' => (string) trans('accounting::accounting.settings.validation.account_not_found'),
+            'inventory_account_code.required' => (string) trans('accounting::accounting.settings.validation.inventory_required'),
+            'inventory_account_code.exists' => (string) trans('accounting::accounting.settings.validation.inventory_invalid'),
             'bank_interest_income_account_code.exists' => (string) trans('accounting::accounting.settings.validation.account_code_not_found'),
             'bank_charges_account_code.exists' => (string) trans('accounting::accounting.settings.validation.account_code_not_found'),
             'treasury_bank_parent_account_code.required' => (string) trans('accounting::accounting.settings.validation.treasury_parent_required'),
@@ -207,6 +217,7 @@ class SettingsController extends AccountingAdminController
             'vat_account_receivable_id' => (string) trans('accounting::accounting.settings.fields.vat_account_receivable_id'),
             'income_tax_expense_account_id' => (string) trans('accounting::accounting.settings.fields.income_tax_expense_account_id'),
             'income_tax_payable_account_id' => (string) trans('accounting::accounting.settings.fields.income_tax_payable_account_id'),
+            'inventory_account_code' => (string) trans('accounting::accounting.settings.fields.inventory_account_code'),
             'bank_interest_income_account_code' => (string) trans('accounting::accounting.settings_bank_reconciliation.bank_interest_income'),
             'bank_charges_account_code' => (string) trans('accounting::accounting.settings_bank_reconciliation.bank_charges'),
             'treasury_bank_parent_account_code' => (string) trans('accounting::accounting.settings.fields.treasury_bank_parent_account_code'),
@@ -250,6 +261,9 @@ class SettingsController extends AccountingAdminController
         }
         if (isset($validated['accounts_payable_account_code'])) {
             $settingsToSave['accounting.system_accounts.liabilities.accounts_payable'] = $validated['accounts_payable_account_code'];
+        }
+        if (isset($validated['inventory_account_code'])) {
+            $settingsToSave['accounting.system_accounts.assets.inventory'] = $validated['inventory_account_code'];
         }
         if (isset($validated['cheques_receivable_clearing_account_code'])) {
             $settingsToSave['accounting.system_accounts.assets.cheques_receivable_clearing'] = $validated['cheques_receivable_clearing_account_code'];
@@ -467,6 +481,7 @@ class SettingsController extends AccountingAdminController
             'decimal_places' => Setting::get('accounting.decimal_places', config('accounting.decimal_places', 0)),
             'accounts_receivable_account_code' => Setting::get('accounting.system_accounts.assets.accounts_receivable', config('accounting.system_accounts.assets.accounts_receivable')),
             'accounts_payable_account_code' => Setting::get('accounting.system_accounts.liabilities.accounts_payable'),
+            'inventory_account_code' => (string) Setting::get('accounting.system_accounts.assets.inventory', ''),
             'cheques_receivable_clearing_account_code' => Setting::get('accounting.system_accounts.assets.cheques_receivable_clearing', config('accounting.system_accounts.assets.cheques_receivable_clearing')),
             'cheques_payable_clearing_account_code' => Setting::get('accounting.system_accounts.liabilities.cheques_payable_clearing', config('accounting.system_accounts.liabilities.cheques_payable_clearing')),
             'fx_gain_account_code' => Setting::get('accounting.system_accounts.gains.fx_gain', config('accounting.system_accounts.gains.fx_gain')),

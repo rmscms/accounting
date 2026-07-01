@@ -4,6 +4,10 @@ namespace RMS\Accounting\Http\Controllers\Api\Service;
 
 use RMS\Accounting\Services\SupplierInvoiceService;
 use RMS\Accounting\Services\SupplierPaymentService;
+use RMS\Accounting\Services\DebitNoteService;
+use RMS\Accounting\Services\RefundService;
+use RMS\Accounting\Services\AdvancePaymentService;
+use RMS\Accounting\Models\DebitNote;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -17,13 +21,22 @@ class PurchasesApiController
 {
     protected SupplierInvoiceService $invoiceService;
     protected SupplierPaymentService $paymentService;
+    protected DebitNoteService $debitNoteService;
+    protected RefundService $refundService;
+    protected AdvancePaymentService $advancePaymentService;
 
     public function __construct(
         SupplierInvoiceService $invoiceService,
-        SupplierPaymentService $paymentService
+        SupplierPaymentService $paymentService,
+        DebitNoteService $debitNoteService,
+        RefundService $refundService,
+        AdvancePaymentService $advancePaymentService
     ) {
         $this->invoiceService = $invoiceService;
         $this->paymentService = $paymentService;
+        $this->debitNoteService = $debitNoteService;
+        $this->refundService = $refundService;
+        $this->advancePaymentService = $advancePaymentService;
     }
 
     /**
@@ -110,5 +123,149 @@ class PurchasesApiController
                 'message' => 'Failed to record payment: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function createDebitNote(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'supplier_id' => 'required|integer|exists:suppliers,id',
+            'supplier_invoice_id' => 'nullable|integer|exists:supplier_invoices,id',
+            'store_id' => 'required|integer',
+            'debit_date' => 'nullable|date',
+            'currency_code' => 'required|string|max:3',
+            'fx_rate' => 'nullable|numeric|min:0.000001',
+            'reason' => 'nullable|string|max:1000',
+            'debit_type' => 'nullable|string',
+            'items' => 'nullable|array',
+        ]);
+
+        $debitNote = $this->debitNoteService->createDebitNote($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => (int) $debitNote->id,
+                'debit_note_number' => (string) $debitNote->debit_note_number,
+                'status' => (string) $debitNote->status,
+            ],
+        ], 201);
+    }
+
+    public function issueDebitNote(int $id): JsonResponse
+    {
+        $debitNote = DebitNote::findOrFail($id);
+        $issued = $this->debitNoteService->issueDebitNote($debitNote);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => (int) $issued->id,
+                'status' => (string) $issued->status,
+            ],
+        ]);
+    }
+
+    public function applyDebitNote(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'invoice_id' => 'required|integer|exists:supplier_invoices,id',
+        ]);
+
+        $debitNote = DebitNote::findOrFail($id);
+        $applied = $this->debitNoteService->applyToInvoice($debitNote, (int) $validated['invoice_id']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => (int) $applied->id,
+                'status' => (string) $applied->status,
+                'invoice_id' => (int) $validated['invoice_id'],
+            ],
+        ]);
+    }
+
+    public function receiveRefund(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'supplier_id' => 'required|integer|exists:suppliers,id',
+            'store_id' => 'required|integer',
+            'debit_note_id' => 'nullable|integer|exists:debit_notes,id',
+            'supplier_payment_id' => 'nullable|integer|exists:supplier_payments,id',
+            'refund_date' => 'nullable|date',
+            'amount' => 'required|numeric|min:0.000001',
+            'currency_code' => 'required|string|max:3',
+            'fx_rate' => 'nullable|numeric|min:0.000001',
+            'refund_method' => 'nullable|string',
+            'bank_id' => 'nullable|integer',
+            'cash_box_id' => 'nullable|integer',
+            'reference_number' => 'nullable|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        $refund = $this->refundService->receiveSupplierRefund($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => (int) $refund->id,
+                'refund_number' => (string) $refund->refund_number,
+                'status' => (string) $refund->status,
+            ],
+        ], 201);
+    }
+
+    public function payAdvance(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'supplier_id' => 'required|integer|exists:suppliers,id',
+            'store_id' => 'required|integer',
+            'advance_date' => 'nullable|date',
+            'amount' => 'required|numeric|min:0.000001',
+            'currency_code' => 'required|string|max:3',
+            'fx_rate' => 'nullable|numeric|min:0.000001',
+            'payment_method' => 'nullable|string',
+            'payment_method_id' => 'nullable|integer',
+            'bank_id' => 'nullable|integer',
+            'cash_box_id' => 'nullable|integer',
+            'cheque_id' => 'nullable|integer',
+            'pos_terminal_id' => 'nullable|integer',
+            'wallet_id' => 'nullable|integer',
+            'reference_number' => 'nullable|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        $advance = $this->advancePaymentService->paySupplierAdvance($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => (int) $advance->id,
+                'advance_number' => (string) $advance->advance_number,
+                'remaining_amount' => (float) $advance->remaining_amount,
+            ],
+        ], 201);
+    }
+
+    public function applyAdvance(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'invoice_id' => 'required|integer|exists:supplier_invoices,id',
+            'amount' => 'required|numeric|min:0.000001',
+        ]);
+
+        $this->advancePaymentService->applySupplierAdvanceToInvoice(
+            $id,
+            (int) $validated['invoice_id'],
+            (float) $validated['amount']
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'advance_id' => $id,
+                'invoice_id' => (int) $validated['invoice_id'],
+                'amount' => (float) $validated['amount'],
+            ],
+        ]);
     }
 }

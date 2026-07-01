@@ -34,6 +34,7 @@ return [
             'general' => 'General',
             'tax' => 'Tax',
             'currency' => 'Currency',
+            'inventory' => 'Inventory',
             'purchase_forms' => 'Purchase Forms',
             'sales_forms' => 'Sales forms',
         ],
@@ -42,11 +43,13 @@ return [
             'system_accounts' => 'System accounts',
             'vat' => 'Value Added Tax (VAT)',
             'income_tax' => 'Corporate Income Tax',
+            'inventory' => 'Inventory settings',
         ],
         'fields' => [
             'default_currency' => 'Default currency',
             'decimal_places' => 'Decimal places',
             'accounts_payable' => 'Accounts Payable',
+            'inventory_account_code' => 'Inventory account',
             'fx_settlement_mode' => 'FX settlement posting mode',
             'fx_difference_account' => 'FX difference account',
             'fx_gain_account' => 'FX gain account',
@@ -72,6 +75,8 @@ return [
             'decimal_places' => 'Number of decimal places in accounting calculations (0 to 4)',
             'accounts_payable_default' => '-- Use standard code (2101) --',
             'accounts_payable' => 'Default supplier payable account (standard code: 2101)',
+            'inventory_account_code' => 'Used for purchases, purchase revisions, COGS, and inventory adjustments. Must be mapped to an active asset account.',
+            'inventory_account_code_help' => 'Typical code: 1104 (Inventory).',
             'fx_gain_default' => '-- Use standard FX gain code --',
             'fx_loss_default' => '-- Use standard FX loss code --',
             'fx_difference_default' => '-- Select FX difference account --',
@@ -106,6 +111,8 @@ return [
             'fx_loss_required_split' => 'FX loss account is required in split mode.',
             'account_not_found' => 'The selected account is invalid or does not exist.',
             'account_code_not_found' => 'The selected account code is invalid or does not match the expected account type.',
+            'inventory_required' => 'Inventory account selection is required.',
+            'inventory_invalid' => 'Inventory account is invalid; it must be an active asset account.',
             'customer_not_found' => 'The selected customer is invalid or does not exist.',
             'treasury_parent_required' => 'Treasury parent account is required.',
             'treasury_parent_invalid' => 'Treasury parent account is invalid; it must be an active asset account.',
@@ -174,6 +181,12 @@ return [
                 'items' => [
                     'consistency' => 'Shows currency consistency status across system, accounting, and shop modules.',
                     'quick_links' => 'Provides shortcuts to related currency and settings pages.',
+                ],
+            ],
+            'inventory' => [
+                'title' => 'Inventory Tab',
+                'items' => [
+                    'inventory_account' => 'This tab defines the inventory account. Related inventory postings fail until a valid mapping is configured.',
                 ],
             ],
             'purchase_forms' => [
@@ -381,6 +394,7 @@ return [
         'list_paid_short' => 'Settled',
         'errors' => [
             'vat_receivable_account_missing' => 'Configure the purchase VAT receivable account in Accounting settings or set accounting.accounts.vat_receivable; posting a purchase with input VAT requires this account.',
+            'inventory_account_missing' => 'Inventory account mapping in Accounting settings is missing or invalid. Current code: :code',
         ],
         'post_document_success' => 'The purchase invoice was posted to the ledger successfully.',
         'post_document_already' => 'An accounting document is already linked to this invoice.',

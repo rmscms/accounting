@@ -91,7 +91,7 @@ class WalletsController extends AccountingAdminController implements
                 Wallet::TYPE_TREASURY,
             ])],
             'user_id' => $this->userIdRules(),
-            'currency_code' => ['required', 'string', 'size:3', 'exists:currencies,code'],
+            'currency_code' => ['required', 'string', 'max:10', 'exists:currencies,code'],
             'account_id' => ['required', 'integer', 'exists:accounts,id'],
             'active' => ['boolean'],
         ];

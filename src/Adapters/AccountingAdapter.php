@@ -22,7 +22,8 @@ use RMS\Accounting\Services\{
     PartyService,
     PartyBalanceService
 };
-use RMS\Accounting\Models\{Customer, Supplier};
+use RMS\Accounting\Models\{Account, Customer, Supplier};
+use RMS\Core\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -636,7 +637,19 @@ class AccountingAdapter
         if ($this->useRemoteApi) {
             return $this->callRemoteApi('POST', '/inventory-adjustments', $data);
         }
-        return $this->inventoryAdjustmentService->createAdjustment($data);
+        $adjustment = $this->inventoryAdjustmentService->createAdjustment($data);
+        $this->inventoryAdjustmentService->approveAdjustment((int) $adjustment->id);
+
+        if (($data['post_to_ledger'] ?? true) === true) {
+            $this->inventoryAdjustmentService->postAdjustment((int) $adjustment->id, [
+                'inventory_account_id' => $this->resolveInventoryAccountId(),
+                'adjustment_gain_account_id' => (int) config('accounting.accounts.inventory_adjustment_gain', 1),
+                'adjustment_loss_account_id' => (int) config('accounting.accounts.inventory_adjustment_loss', 1),
+                'writedown_account_id' => (int) config('accounting.accounts.inventory_writedown', 1),
+            ]);
+        }
+
+        return $adjustment->fresh();
     }
 
     public function recordInventoryWritedown(array $data)
@@ -645,6 +658,29 @@ class AccountingAdapter
             return $this->callRemoteApi('POST', '/inventory-adjustments/writedown', $data);
         }
         $data['adjustment_type'] = 'writedown';
-        return $this->inventoryAdjustmentService->createAdjustment($data);
+        return $this->createInventoryAdjustment($data);
+    }
+
+    protected function resolveInventoryAccountId(): int
+    {
+        $configuredCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        if ($configuredCode === '') {
+            throw new \RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => '—',
+            ]));
+        }
+
+        $inventoryId = (int) (Account::query()
+            ->where('account_type', Account::TYPE_ASSET)
+            ->where('active', true)
+            ->where('code', $configuredCode)
+            ->value('id') ?? 0);
+        if ($inventoryId <= 0) {
+            throw new \RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => $configuredCode,
+            ]));
+        }
+
+        return $inventoryId;
     }
 }

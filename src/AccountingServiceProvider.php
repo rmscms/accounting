@@ -145,10 +145,9 @@ class AccountingServiceProvider extends ServiceProvider
         //     $this->loadRoutesFrom(__DIR__.'/../routes/admin_api.php');
         // }
 
-        // Service API routes are disabled until controllers are created  
-        // if (config('accounting.service_api.enabled', true)) {
-        //     $this->loadRoutesFrom(__DIR__.'/../routes/service_api.php');
-        // }
+        if (config('accounting.service_api.enabled', true)) {
+            $this->loadRoutesFrom(__DIR__.'/../routes/service_api.php');
+        }
 
         // Load views (مسیر publish‌شدهٔ resources/views/vendor/accounting توسط خود Laravel قبل از پکیج ثبت می‌شود)
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'accounting');

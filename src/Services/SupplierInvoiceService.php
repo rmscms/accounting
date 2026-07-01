@@ -2,6 +2,7 @@
 
 namespace RMS\Accounting\Services;
 
+use RMS\Accounting\Models\Account;
 use RMS\Accounting\Models\AccountingDocument;
 use RMS\Accounting\Models\Bank;
 use RMS\Accounting\Models\CashBox;
@@ -16,6 +17,7 @@ use RMS\Accounting\Services\Tax\TaxCalculator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RMS\Core\Models\Setting;
 
 /**
  * سرویس مدیریت فاکتورهای خرید
@@ -171,9 +173,9 @@ class SupplierInvoiceService
             $costAccountId = $costAccount->id;
         }
         
-        // Fallback به حساب کنترل در صورت عدم وجود حساب فرعی
-        if (!$costAccountId) {
-            $costAccountId = config('accounting.accounts.inventory');
+        // حساب موجودی باید به‌صورت صریح در تنظیمات حسابداری تعیین شده باشد.
+        if (! $costAccountId) {
+            $costAccountId = $this->resolveInventoryCostAccountId();
         }
 
         // ایجاد سند حسابداری
@@ -506,5 +508,33 @@ class SupplierInvoiceService
         }
 
         return $replacement->fresh();
+    }
+
+    protected function resolveInventoryCostAccountId(): int
+    {
+        $configuredCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        if ($configuredCode === '') {
+            throw ValidationException::withMessages([
+                '_inventory' => (string) trans('accounting::accounting.supplier_invoice.errors.inventory_account_missing', [
+                    'code' => '—',
+                ]),
+            ]);
+        }
+
+        $inventoryId = (int) (Account::query()
+            ->where('account_type', Account::TYPE_ASSET)
+            ->where('active', true)
+            ->where('code', $configuredCode)
+            ->value('id') ?? 0);
+
+        if ($inventoryId <= 0) {
+            throw ValidationException::withMessages([
+                '_inventory' => (string) trans('accounting::accounting.supplier_invoice.errors.inventory_account_missing', [
+                    'code' => $configuredCode,
+                ]),
+            ]);
+        }
+
+        return $inventoryId;
     }
 }

@@ -3683,19 +3683,25 @@ class ScenarioRunnerService
 
     private function resolveInventoryOrAssetAccountId(): int
     {
-        $preferredCode = trim((string) config('accounting.accounts.inventory', ''));
-        if ($preferredCode !== '') {
-            $preferred = (int) Account::query()->where('code', $preferredCode)->value('id');
-            if ($preferred > 0) {
-                return $preferred;
-            }
+        $configuredCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        if ($configuredCode === '') {
+            throw new RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => '—',
+            ]));
         }
 
-        return (int) Account::query()
+        $inventoryId = (int) (Account::query()
             ->where('active', true)
             ->where('account_type', Account::TYPE_ASSET)
-            ->orderBy('id')
-            ->value('id');
+            ->where('code', $configuredCode)
+            ->value('id') ?? 0);
+        if ($inventoryId <= 0) {
+            throw new RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => $configuredCode,
+            ]));
+        }
+
+        return $inventoryId;
     }
 
     private function vatRate(): float

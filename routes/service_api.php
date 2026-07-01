@@ -1,7 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use RMS\Accounting\Http\Controllers\ServiceApi;
+use RMS\Accounting\Http\Controllers\Api\Service\SalesApiController;
+use RMS\Accounting\Http\Controllers\Api\Service\CustomersApiController;
+use RMS\Accounting\Http\Controllers\Api\Service\PurchasesApiController;
+use RMS\Accounting\Http\Controllers\Api\Service\InventoryApiController;
+use RMS\Accounting\Http\Controllers\Api\Service\CurrenciesApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,25 +20,27 @@ Route::prefix('api/service/accounting')
     ->group(function () {
         
         // ثبت فاکتور فروش (از shop)
-        Route::post('sales/record-invoice', [ServiceApi\SalesApiController::class, 'recordInvoice']);
+        Route::post('sales/record-invoice', [SalesApiController::class, 'recordInvoice']);
         
         // ثبت دریافت (از shop)
-        Route::post('sales/record-payment', [ServiceApi\SalesApiController::class, 'recordPayment']);
+        Route::post('sales/record-payment', [SalesApiController::class, 'recordPayment']);
         
         // دریافت مانده مشتری
-        Route::get('customers/{id}/balance', [ServiceApi\CustomersApiController::class, 'getBalance']);
+        Route::get('customers/{id}/balance', [CustomersApiController::class, 'getBalance']);
         
         // ثبت هزینه خرید (از inventory)
-        Route::post('purchases/record-invoice', [ServiceApi\PurchasesApiController::class, 'recordInvoice']);
+        Route::post('purchases/record-invoice', [PurchasesApiController::class, 'recordInvoice']);
         
         // ثبت پرداخت به تامین‌کننده (از inventory)
-        Route::post('purchases/record-payment', [ServiceApi\PurchasesApiController::class, 'recordPayment']);
+        Route::post('purchases/record-payment', [PurchasesApiController::class, 'recordPayment']);
         
         // ثبت بهای تمام شده (COGS)
-        Route::post('inventory/record-cogs', [ServiceApi\InventoryApiController::class, 'recordCOGS']);
+        Route::post('inventory/record-cogs', [InventoryApiController::class, 'recordCOGS']);
+        Route::post('inventory/record-adjustment', [InventoryApiController::class, 'recordAdjustment']);
+        Route::post('inventory/reverse-adjustment', [InventoryApiController::class, 'reverseAdjustment']);
         
         // دریافت نرخ ارز فعلی
-        Route::get('currencies/{code}/rate', [ServiceApi\CurrenciesApiController::class, 'getCurrentRate']);
+        Route::get('currencies/{code}/rate', [CurrenciesApiController::class, 'getCurrentRate']);
         
         // Health Check
         Route::get('health', fn() => response()->json(['status' => 'ok', 'service' => 'accounting']));
@@ -44,34 +50,34 @@ Route::prefix('api/service/accounting')
         // ========================================
         
         // ثبت اعتبار برگشتی (از shop)
-        Route::post('sales/credit-note', [ServiceApi\SalesApiController::class, 'createCreditNote']);
-        Route::post('sales/credit-note/{id}/issue', [ServiceApi\SalesApiController::class, 'issueCreditNote']);
-        Route::post('sales/credit-note/{id}/apply', [ServiceApi\SalesApiController::class, 'applyCreditNote']);
+        Route::post('sales/credit-note', [SalesApiController::class, 'createCreditNote']);
+        Route::post('sales/credit-note/{id}/issue', [SalesApiController::class, 'issueCreditNote']);
+        Route::post('sales/credit-note/{id}/apply', [SalesApiController::class, 'applyCreditNote']);
         
         // ثبت یادداشت بدهکار (از inventory)
-        Route::post('purchases/debit-note', [ServiceApi\PurchasesApiController::class, 'createDebitNote']);
-        Route::post('purchases/debit-note/{id}/issue', [ServiceApi\PurchasesApiController::class, 'issueDebitNote']);
-        Route::post('purchases/debit-note/{id}/apply', [ServiceApi\PurchasesApiController::class, 'applyDebitNote']);
+        Route::post('purchases/debit-note', [PurchasesApiController::class, 'createDebitNote']);
+        Route::post('purchases/debit-note/{id}/issue', [PurchasesApiController::class, 'issueDebitNote']);
+        Route::post('purchases/debit-note/{id}/apply', [PurchasesApiController::class, 'applyDebitNote']);
         
         // ========================================
         // Refunds (NEW)
         // ========================================
         
         // بازگشت وجه به مشتری (از shop)
-        Route::post('sales/refund', [ServiceApi\SalesApiController::class, 'processRefund']);
+        Route::post('sales/refund', [SalesApiController::class, 'processRefund']);
         
         // دریافت بازگشت از تامین‌کننده (از inventory)
-        Route::post('purchases/refund', [ServiceApi\PurchasesApiController::class, 'receiveRefund']);
+        Route::post('purchases/refund', [PurchasesApiController::class, 'receiveRefund']);
         
         // ========================================
         // Advance Payments (NEW)
         // ========================================
         
         // پیش دریافت از مشتری (از shop)
-        Route::post('sales/advance', [ServiceApi\SalesApiController::class, 'receiveAdvance']);
-        Route::post('sales/advance/{id}/apply', [ServiceApi\SalesApiController::class, 'applyAdvance']);
+        Route::post('sales/advance', [SalesApiController::class, 'receiveAdvance']);
+        Route::post('sales/advance/{id}/apply', [SalesApiController::class, 'applyAdvance']);
         
         // پیش پرداخت به تامین‌کننده (از inventory)
-        Route::post('purchases/advance', [ServiceApi\PurchasesApiController::class, 'payAdvance']);
-        Route::post('purchases/advance/{id}/apply', [ServiceApi\PurchasesApiController::class, 'applyAdvance']);
+        Route::post('purchases/advance', [PurchasesApiController::class, 'payAdvance']);
+        Route::post('purchases/advance/{id}/apply', [PurchasesApiController::class, 'applyAdvance']);
     });

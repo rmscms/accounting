@@ -2,8 +2,10 @@
 
 namespace RMS\Accounting\Services;
 
+use RMS\Accounting\Models\Account;
 use RMS\Accounting\Models\CostEntry;
 use Illuminate\Support\Facades\DB;
+use RMS\Core\Models\Setting;
 
 /**
  * سرویس مدیریت بهای تمام شده (COGS)
@@ -94,7 +96,7 @@ class COGSService
             'source_reference_type' => CostEntry::class,
             'source_reference_id' => $costEntry->id,
             'store_id' => $storeId,
-            'account_id' => config('accounting.accounts.inventory'),
+            'account_id' => $this->resolveInventoryAccountId(),
             'currency_code' => $costEntry->currency_code ?? 'IRR',
             'debit_amount' => 0,
             'credit_amount' => $costAmount,
@@ -145,5 +147,28 @@ class COGSService
         // Note: store_id در cost_entries وجود ندارد، اگر نیاز باشد باید از reference_type/reference_id استفاده کرد
 
         return $query->sum('total_cost');
+    }
+
+    protected function resolveInventoryAccountId(): int
+    {
+        $configuredCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        if ($configuredCode === '') {
+            throw new \RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => '—',
+            ]));
+        }
+
+        $inventoryId = (int) (Account::query()
+            ->where('account_type', Account::TYPE_ASSET)
+            ->where('active', true)
+            ->where('code', $configuredCode)
+            ->value('id') ?? 0);
+        if ($inventoryId <= 0) {
+            throw new \RuntimeException((string) trans('accounting::accounting.sample_data.preflight.inventory', [
+                'code' => $configuredCode,
+            ]));
+        }
+
+        return $inventoryId;
     }
 }
