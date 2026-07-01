@@ -1,7 +1,7 @@
 @extends('cms::admin.layout.index')
 @section('title', 'تنظیمات حسابداری')
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid" data-account-search-url="{{ $accountSearchUrl ?? route('admin.accounting.settings.search-accounts') }}">
     <div class="card">
         <div class="card-header">
             <h4 class="mb-0">
@@ -713,17 +713,20 @@
                                     $inventoryCode = (string) old('inventory_account_code', $settings['inventory_account_code'] ?? '');
                                     $inventoryLabel = (string) ($settings['inventory_account_label'] ?? '');
                                     $inventoryText = trim($inventoryCode . ($inventoryLabel !== '' ? (' - ' . $inventoryLabel) : ''));
+                                    $inventorySelectClass = 'js-settings-inventory-account-select'
+                                        . ($errors->has('inventory_account_code') ? ' is-invalid' : '');
                                 @endphp
-                                <select class="form-select js-settings-inventory-account-select @error('inventory_account_code') is-invalid @enderror"
-                                        name="inventory_account_code"
-                                        data-search-url="{{ route('admin.accounting.settings.search-accounts') }}"
-                                        data-placeholder="{{ trans('accounting::accounting.settings.hints.inventory_account_code_search_placeholder') }}"
-                                        data-account-setting-tag="assets.inventory">
-                                    <option value="">{{ trans('accounting::accounting.settings.hints.treasury_parent_account_placeholder') }}</option>
-                                    @if($inventoryCode !== '')
-                                        <option value="{{ $inventoryCode }}" selected>{{ $inventoryText !== '' ? $inventoryText : $inventoryCode }}</option>
-                                    @endif
-                                </select>
+                                @include('accounting::components.account_ajax_select', [
+                                    'name' => 'inventory_account_code',
+                                    'value' => $inventoryCode,
+                                    'label' => $inventoryText !== '' ? $inventoryText : $inventoryCode,
+                                    'placeholder' => trans('accounting::accounting.settings.hints.treasury_parent_account_placeholder'),
+                                    'types' => ['asset'],
+                                    'valueKey' => 'code',
+                                    'searchUrl' => $accountSearchUrl ?? route('admin.accounting.settings.search-accounts'),
+                                    'dataTag' => 'assets.inventory',
+                                    'class' => $inventorySelectClass,
+                                ])
                                 @error('inventory_account_code')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                                 <small class="text-muted">{{ trans('accounting::accounting.settings.hints.inventory_account_code_help') }}</small>
                             </div>

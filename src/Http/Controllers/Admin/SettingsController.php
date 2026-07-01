@@ -64,17 +64,19 @@ class SettingsController extends AccountingAdminController
     {
         // دریافت تنظیمات فعلی
         $settings = $this->getAllSettings();
+        $oldInput = is_array(session()->getOldInput()) ? session()->getOldInput() : [];
+        $accounts = $this->resolveSettingsSelectedAccounts($settings, $oldInput);
         
         $this->view->usePackageNamespace('accounting')
             ->setTheme('admin')
             ->setTpl('settings.index')
+            ->withPlugins(['advanced-select'])
             ->withJs('vendor/accounting/admin/js/account-settings-focus.js', true)
             ->withVariables([
                 'settings' => $settings,
                 'createDefaultSalesCustomerRoute' => route('admin.accounting.settings.create-default-sales-customer'),
-                'accounts' => \RMS\Accounting\Models\Account::where('active', true)
-                    ->orderBy('code')
-                    ->get(),
+                'accountSearchUrl' => route('admin.accounting.settings.search-accounts'),
+                'accounts' => $accounts,
             ]);
         
         return $this->view();
@@ -440,21 +442,31 @@ class SettingsController extends AccountingAdminController
             return response()->json(['results' => []]);
         }
 
+        $types = collect(explode(',', (string) $request->query('types', '')))
+            ->map(static fn ($type) => trim((string) $type))
+            ->filter(static fn ($type) => $type !== '')
+            ->unique()
+            ->values()
+            ->all();
+        $valueKey = trim((string) $request->query('value_key', 'code')) === 'id' ? 'id' : 'code';
         $limit = min(50, max(5, (int) $request->query('limit', 30)));
-        $accounts = Account::query()
-            ->where('account_type', Account::TYPE_ASSET)
+        $query = Account::query()
             ->where('active', true)
             ->where(function ($query) use ($q): void {
                 $query->where('code', 'like', '%' . $q . '%')
                     ->orWhere('name', 'like', '%' . $q . '%');
-            })
-            ->orderBy('code')
-            ->limit($limit)
-            ->get(['code', 'name']);
+            });
+        if ($types !== []) {
+            $query->whereIn('account_type', $types);
+        }
+
+        $accounts = $query->orderBy('code')->limit($limit)->get(['id', 'code', 'name']);
 
         return response()->json([
             'results' => $accounts->map(static fn (Account $account): array => [
-                'id' => (string) $account->code,
+                'id' => $valueKey === 'id'
+                    ? (string) (int) $account->id
+                    : (string) $account->code,
                 'text' => trim((string) $account->code) . ' - ' . trim((string) $account->name),
             ])->values()->all(),
         ]);
@@ -604,6 +616,88 @@ class SettingsController extends AccountingAdminController
                 ]
                 : null,
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $settings
+     * @param array<string,mixed> $oldInput
+     */
+    protected function resolveSettingsSelectedAccounts(array $settings, array $oldInput = []): \Illuminate\Support\Collection
+    {
+        $codeFields = [
+            'accounts_receivable_account_code',
+            'accounts_payable_account_code',
+            'inventory_account_code',
+            'cheques_receivable_clearing_account_code',
+            'cheques_payable_clearing_account_code',
+            'fx_gain_account_code',
+            'fx_loss_account_code',
+            'fx_difference_account_code',
+            'wages_payable_account_code',
+            'social_insurance_payable_account_code',
+            'employee_insurance_payable_account_code',
+            'employer_insurance_payable_account_code',
+            'payroll_tax_payable_account_code',
+            'other_payroll_deductions_payable_account_code',
+            'payroll_seniority_reserve_account_code',
+            'employer_social_insurance_account_code',
+            'payroll_seniority_account_code',
+            'employee_loans_receivable_account_code',
+            'employee_loan_interest_income_account_code',
+            'bank_interest_income_account_code',
+            'bank_charges_account_code',
+            'treasury_bank_parent_account_code',
+            'treasury_cashbox_parent_account_code',
+            'equity_capital_account_code',
+            'shareholder_drawings_account_code',
+            'retained_earnings_account_code',
+            'income_summary_account_code',
+        ];
+        $idFields = [
+            'vat_account_payable_id',
+            'vat_account_receivable_id',
+            'income_tax_expense_account_id',
+            'income_tax_payable_account_id',
+        ];
+
+        $codes = [];
+        foreach ($codeFields as $field) {
+            $value = trim((string) ($oldInput[$field] ?? $settings[$field] ?? ''));
+            if ($value !== '') {
+                $codes[] = $value;
+            }
+        }
+
+        $ids = [];
+        foreach ($idFields as $field) {
+            $raw = $oldInput[$field] ?? $settings[$field] ?? null;
+            $id = is_numeric($raw) ? (int) $raw : 0;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        $codes = array_values(array_unique($codes));
+        $ids = array_values(array_unique($ids));
+        if ($codes === [] && $ids === []) {
+            return collect();
+        }
+
+        return Account::query()
+            ->where(function ($query) use ($codes, $ids): void {
+                if ($codes !== []) {
+                    $query->whereIn('code', $codes);
+                }
+                if ($ids !== []) {
+                    if ($codes !== []) {
+                        $query->orWhereIn('id', $ids);
+                    } else {
+                        $query->whereIn('id', $ids);
+                    }
+                }
+            })
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'account_type']);
     }
 
     private function resolveGeneralSalesCustomer(): ?Customer
