@@ -709,16 +709,20 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">{{ trans('accounting::accounting.settings.fields.inventory_account_code') }}</label>
-                                <select class="form-select enhanced-select @error('inventory_account_code') is-invalid @enderror"
+                                @php
+                                    $inventoryCode = (string) old('inventory_account_code', $settings['inventory_account_code'] ?? '');
+                                    $inventoryLabel = (string) ($settings['inventory_account_label'] ?? '');
+                                    $inventoryText = trim($inventoryCode . ($inventoryLabel !== '' ? (' - ' . $inventoryLabel) : ''));
+                                @endphp
+                                <select class="form-select js-settings-inventory-account-select @error('inventory_account_code') is-invalid @enderror"
                                         name="inventory_account_code"
+                                        data-search-url="{{ route('admin.accounting.settings.search-accounts') }}"
+                                        data-placeholder="{{ trans('accounting::accounting.settings.hints.inventory_account_code_search_placeholder') }}"
                                         data-account-setting-tag="assets.inventory">
                                     <option value="">{{ trans('accounting::accounting.settings.hints.treasury_parent_account_placeholder') }}</option>
-                                    @foreach($accounts->where('account_type', 'asset') as $account)
-                                    <option value="{{ $account->code }}"
-                                            {{ old('inventory_account_code', $settings['inventory_account_code'] ?? '') == $account->code ? 'selected' : '' }}>
-                                        {{ $account->code }} - {{ $account->name }}
-                                    </option>
-                                    @endforeach
+                                    @if($inventoryCode !== '')
+                                        <option value="{{ $inventoryCode }}" selected>{{ $inventoryText !== '' ? $inventoryText : $inventoryCode }}</option>
+                                    @endif
                                 </select>
                                 @error('inventory_account_code')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                                 <small class="text-muted">{{ trans('accounting::accounting.settings.hints.inventory_account_code_help') }}</small>
@@ -910,4 +914,5 @@
 @section('assets')
     <script src="{{ asset('vendor/accounting/admin/js/account-settings-focus.js') }}"></script>
     <script src="{{ asset('vendor/accounting/admin/js/account-settings-default-customer.js') }}"></script>
+    <script src="{{ asset('vendor/accounting/admin/js/account-settings-account-picker.js') }}"></script>
 @endsection

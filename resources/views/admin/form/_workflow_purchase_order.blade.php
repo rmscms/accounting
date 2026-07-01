@@ -44,6 +44,30 @@
     </div>
 </div>
 
+@if($po && !empty($inventoryAccountSetupMissing))
+    <div class="card border-0 shadow-sm mb-3 border-start border-warning border-4">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-start gap-3 mb-2">
+                <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-2 d-inline-flex">
+                    <i class="ph-warning fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="fw-semibold mb-1">{{ trans('accounting::accounting.structured_workflow.purchase_order.inventory_setup_missing_title') }}</h6>
+                    <p class="text-muted small mb-0 lh-lg">
+                        {{ trans('accounting::accounting.sample_data.preflight.inventory', ['code' => (($inventoryAccountCode ?? '') !== '' ? (string) $inventoryAccountCode : '—')]) }}
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 pt-2 border-top">
+                <a href="{{ $inventoryAccountSettingsUrl ?? route('admin.accounting.settings.index', ['settings_tab' => 'inventory-tab', 'account_setting_tag' => 'assets.inventory']) }}" class="btn btn-sm btn-warning">
+                    <i class="ph-gear me-1"></i>{{ trans('accounting::accounting.structured_workflow.purchase_order.inventory_setup_missing_btn') }}
+                </a>
+                <span class="small text-muted">{{ trans('accounting::accounting.structured_workflow.purchase_order.inventory_setup_missing_hint') }}</span>
+            </div>
+        </div>
+    </div>
+@endif
+
 @if($isDraft && $po)
     <div class="card border-0 shadow-sm mb-3 border-start border-success border-4">
         <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3 py-3">

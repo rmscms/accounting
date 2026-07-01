@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use RMS\Accounting\Services\PurchaseOrderService;
 use RMS\Accounting\Http\Controllers\Admin\Concerns\RendersAccountingStructuredResourceForm;
+use RMS\Accounting\Models\Account;
 use RMS\Accounting\Models\Currency;
 use RMS\Accounting\Models\PurchaseOrder;
 use RMS\Accounting\Models\Supplier;
@@ -136,6 +137,16 @@ class PurchaseOrdersController extends AccountingAdminController implements HasL
         $fxCardInitialCurrency = $baseCurrency;
         $fxCardInitialRate = '1';
         $fxCardInitialBaseAmount = '';
+        $inventoryAccountCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        $inventoryAccountSetupMissing = $inventoryAccountCode === '' || ! Account::query()
+            ->where('active', true)
+            ->where('account_type', Account::TYPE_ASSET)
+            ->where('code', $inventoryAccountCode)
+            ->exists();
+        $inventoryAccountSettingsUrl = route('admin.accounting.settings.index', [
+            'settings_tab' => 'inventory-tab',
+            'account_setting_tag' => 'assets.inventory',
+        ]) . '#account-setting:assets.inventory';
 
         if ($isEdit && $model instanceof PurchaseOrder) {
             $purchaseOrderItemsFragmentUrl = route('admin.accounting.purchase-orders.items-fragment', [
@@ -191,6 +202,9 @@ class PurchaseOrdersController extends AccountingAdminController implements HasL
             'fxCardInitialCurrency' => $fxCardInitialCurrency,
             'fxCardInitialRate' => $fxCardInitialRate,
             'fxCardInitialBaseAmount' => $fxCardInitialBaseAmount,
+            'inventoryAccountSetupMissing' => $inventoryAccountSetupMissing,
+            'inventoryAccountCode' => $inventoryAccountCode,
+            'inventoryAccountSettingsUrl' => $inventoryAccountSettingsUrl,
         ];
     }
 

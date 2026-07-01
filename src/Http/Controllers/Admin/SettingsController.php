@@ -432,6 +432,33 @@ class SettingsController extends AccountingAdminController
             ->route('admin.accounting.settings.index')
             ->with('success', $message);
     }
+
+    public function searchAssetAccounts(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $limit = min(50, max(5, (int) $request->query('limit', 30)));
+        $accounts = Account::query()
+            ->where('account_type', Account::TYPE_ASSET)
+            ->where('active', true)
+            ->where(function ($query) use ($q): void {
+                $query->where('code', 'like', '%' . $q . '%')
+                    ->orWhere('name', 'like', '%' . $q . '%');
+            })
+            ->orderBy('code')
+            ->limit($limit)
+            ->get(['code', 'name']);
+
+        return response()->json([
+            'results' => $accounts->map(static fn (Account $account): array => [
+                'id' => (string) $account->code,
+                'text' => trim((string) $account->code) . ' - ' . trim((string) $account->name),
+            ])->values()->all(),
+        ]);
+    }
     
     /**
      * دریافت همه تنظیمات
@@ -474,6 +501,10 @@ class SettingsController extends AccountingAdminController
         if ($incomeSummaryId <= 0) {
             $incomeSummaryId = (int) Account::query()->where('code', '3900')->value('id');
         }
+        $inventoryCode = trim((string) Setting::get('accounting.system_accounts.assets.inventory', ''));
+        $inventoryLabel = $inventoryCode !== ''
+            ? (string) (Account::query()->where('code', $inventoryCode)->value('name') ?? '')
+            : '';
 
         return [
             // تنظیمات عمومی
@@ -481,7 +512,8 @@ class SettingsController extends AccountingAdminController
             'decimal_places' => Setting::get('accounting.decimal_places', config('accounting.decimal_places', 0)),
             'accounts_receivable_account_code' => Setting::get('accounting.system_accounts.assets.accounts_receivable', config('accounting.system_accounts.assets.accounts_receivable')),
             'accounts_payable_account_code' => Setting::get('accounting.system_accounts.liabilities.accounts_payable'),
-            'inventory_account_code' => (string) Setting::get('accounting.system_accounts.assets.inventory', ''),
+            'inventory_account_code' => $inventoryCode,
+            'inventory_account_label' => $inventoryLabel,
             'cheques_receivable_clearing_account_code' => Setting::get('accounting.system_accounts.assets.cheques_receivable_clearing', config('accounting.system_accounts.assets.cheques_receivable_clearing')),
             'cheques_payable_clearing_account_code' => Setting::get('accounting.system_accounts.liabilities.cheques_payable_clearing', config('accounting.system_accounts.liabilities.cheques_payable_clearing')),
             'fx_gain_account_code' => Setting::get('accounting.system_accounts.gains.fx_gain', config('accounting.system_accounts.gains.fx_gain')),

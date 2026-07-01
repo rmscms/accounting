@@ -60,6 +60,9 @@ Route::prefix(config('accounting.routes.admin_prefix', 'admin/accounting'))
         // تنظیمات
         Route::get('/settings', [Admin\SettingsController::class, 'showSettings'])->name('settings.index');
         Route::put('/settings', [Admin\SettingsController::class, 'saveSettings'])->name('settings.update');
+        Route::get('/settings/search-accounts', [Admin\SettingsController::class, 'searchAssetAccounts'])
+            ->middleware('throttle:90,1')
+            ->name('settings.search-accounts');
         Route::post('/settings/create-default-sales-customer', [Admin\SettingsController::class, 'createDefaultSalesCustomer'])
             ->middleware('throttle:6,1')
             ->name('settings.create-default-sales-customer');
