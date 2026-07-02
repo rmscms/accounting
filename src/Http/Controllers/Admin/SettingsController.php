@@ -66,9 +66,11 @@ class SettingsController extends AccountingAdminController
         $settings = $this->getAllSettings();
         $oldInput = is_array(session()->getOldInput()) ? session()->getOldInput() : [];
         $accounts = $this->resolveSettingsSelectedAccounts($settings, $oldInput);
+
+        $this->title('تنظیمات حسابداری');
+        $this->use_package_namespace = true;
         
         $this->view->usePackageNamespace('accounting')
-            ->setTheme('admin')
             ->setTpl('settings.index')
             ->withPlugins(['advanced-select'])
             ->withJs('vendor/accounting/admin/js/account-settings-focus.js', true)
